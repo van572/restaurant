@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 ARCHIVO DE AUDITORÍA - Libro Mayor y Finanzas</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg-base: #0F172A;
+            --color-bg-depth: #1E293B;
+            --color-bg-surface: #334155;
+            --color-primary: #10B981; /* Emerald */
+            --color-secondary: #8B5CF6; /* Violet for auditing highlight */
+            --color-accent: #3B82F6; /* Blue */
+            --color-text-main: #F8FAFC;
+            --color-text-muted: #94A3B8;
+            --color-border: #475569;
+            --color-danger: #EF4444;
+            --color-info: #06B6D4;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --shadow-custom: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+            --transition-all: all 0.2s ease-in-out;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--color-bg-base);
+            color: var(--color-text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        /* --- NAVBAR --- */
+        header {
+            background-color: var(--color-bg-depth);
+            border-bottom: 2px solid var(--color-border);
+            padding: 1rem 1.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            box-shadow: var(--shadow-custom);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-brand h1 {
+            font-family: var(--font-display);
+            font-size: 1.45rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--color-text-main);
+        }
+
+        .header-brand .role-badge {
+            background-color: rgba(139, 92, 246, 0.15);
+            color: var(--color-secondary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.65rem;
+            border-radius: 9999px;
+            border: 1px solid var(--color-secondary);
+            letter-spacing: 0.05em;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.25rem;
+        }
+
+        .nav-button {
+            text-decoration: none;
+            color: var(--color-text-muted);
+            font-weight: 600;
+            font-size: 0.925rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: var(--transition-all);
+        }
+
+        .nav-button:hover, .nav-button.active {
+            color: var(--color-text-main);
+            background-color: var(--color-bg-surface);
+        }
+
+        /* Configuración derecha */
+        .right-control-panel {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 8px;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.825rem;
+            font-weight: 600;
+        }
+
+        .connection-indicator.live {
+            background-color: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .led-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--color-secondary);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--color-secondary);
+            animation: pulse-glow 1.5s infinite alternate;
+        }
+
+        .connection-indicator.live .led-dot {
+            background-color: var(--color-primary);
+            box-shadow: 0 0 8px var(--color-primary);
+        }
+
+        @keyframes pulse-glow {
+            from { opacity: 0.4; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1.1); }
+        }
+
+        .btn-gear-config {
+            background-color: var(--color-bg-surface);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-main);
+            width: 38px;
+            height: 38px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition-all);
+        }
+
+        .btn-gear-config:hover {
+            border-color: var(--color-secondary);
+            background-color: rgba(139, 92, 246, 0.05);
+        }
+
+        /* --- DETALLE CONTENIDO PRINCIPAL --- */
+        .auditoria-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            flex-grow: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* BANNER DE TITULO E HISTORIAL */
+        .auditoria-top-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--color-bg-depth);
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            padding: 1.25rem 1.75rem;
+            box-shadow: var(--shadow-custom);
+        }
+
+        .title-block-aud h2 {
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        .title-block-aud p {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            margin-top: 0.15rem;
+        }
+
+        .btn-exportar-csv {
+            background-color: var(--color-secondary);
+            color: white;
+            border: none;
+            padding: 0.65rem 1.25rem;
+            border-radius: 8px;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition-all);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-exportar-csv:hover {
+            background-color: #7C3AED;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(139, 92, 246, 0.45);
+        }
+
+        /* --- PANEL DE INDICADORES FINANCIEROS (KPIS) --- */
+        .grid-kpis-financieros {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+        }
+
+        .kpi-card {
+            background-color: var(--color-bg-depth);
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1.1rem;
+            box-shadow: var(--shadow-custom);
+            transition: var(--transition-all);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--color-border);
+        }
+
+        .kpi-icon {
+            font-size: 2rem;
+            width: 54px;
+            height: 54px;
+            background-color: var(--color-bg-surface);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .kpi-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kpi-label {
+            font-size: 0.725rem;
+            font-weight: 700;
+            color: var(--color-text-muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+        }
+
+        .kpi-value {
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--color-text-main);
+        }
+
+        /* Colores destacados para KPIs específicos */
+        #kpi-ventas-totales { color: var(--color-primary); }
+        #kpi-transacciones-recuento { color: var(--color-info); }
+
+        /* --- REGISTRO DEL DÍA: TABLA CONTABLE --- */
+        .table-auditoria-panel {
+            background-color: var(--color-bg-depth);
+            border-radius: 12px;
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-custom);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .table-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header-row h3 {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .table-search-box {
+            display: flex;
+            align-items: center;
+            background-color: var(--color-bg-base);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 0.4rem 0.85rem;
+            width: 300px;
+            max-width: 100%;
+        }
+
+        .table-search-box input {
+            background: none;
+            border: none;
+            color: var(--color-text-main);
+            font-size: 0.85rem;
+            width: 100%;
+            padding-left: 0.4rem;
+        }
+        .table-search-box input:focus { outline: none; }
+
+        .search-icon-glass { font-size: 0.85rem; color: var(--color-text-muted); }
+
+        /* Estructura de la Tabla Responsiva */
+        .table-responsive-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+        }
+
+        table.auditoria-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        table.auditoria-table th {
+            background-color: rgba(15, 23, 42, 0.4);
+            color: var(--color-text-muted);
+            font-weight: 700;
+            padding: 0.85rem 1rem;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        table.auditoria-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            color: var(--color-text-main);
+        }
+
+        table.auditoria-table tbody tr:hover {
+            background-color: rgba(255,255,255,0.01);
+        }
+
+        /* Insignias de Métodos de Pago Financieros */
+        .estado-pago-pill {
+            font-family: var(--font-mono);
+            font-size: 0.725rem;
+            font-weight: 700;
+            padding: 0.2rem 0.55rem;
+            border-radius: 4px;
+            border: 1px solid;
+            display: inline-block;
+        }
+        .badge-efectivo { border-color: var(--color-primary); color: var(--color-primary); background-color: rgba(16, 185, 129, 0.04); }
+        .badge-tarjeta { border-color: var(--color-accent); color: var(--color-accent); background-color: rgba(59, 130, 246, 0.04); }
+        .badge-transferencia { border-color: var(--color-secondary); color: var(--color-secondary); background-color: rgba(139, 92, 246, 0.04); }
+
+        .aud-pedido-id {
+            background-color: var(--color-bg-base);
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            border: 1px solid var(--color-border);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .precio-col-text {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        /* MODALES ESTILOS COMUNES */
+        .supabase-config-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .supabase-config-modal-card {
+            background-color: var(--color-bg-depth);
+            border: 2px solid var(--color-border);
+            border-radius: 12px;
+            width: 480px;
+            max-width: 90%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+
+        .modal-card-header {
+            padding: 1.25rem;
+            border-bottom: 2px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-card-header h3 { font-family: var(--font-display); font-size: 1.1rem; }
+        .btn-close-modal { background: none; border: none; color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer; }
+        .btn-close-modal:hover { color: var(--color-text-main); }
+
+        .modal-card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+        .modal-instruccion-text { font-size: 0.85rem; color: var(--color-text-muted); }
+        .form-group-modal { display: flex; flex-direction: column; gap: 0.4rem; }
+        .form-group-modal label { font-size: 0.75rem; font-weight: 700; color: rgba(139, 92, 246, 0.8); }
+        .form-group-modal input, .form-group-modal textarea {
+            background-color: var(--color-bg-base);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 0.6rem;
+            color: var(--color-text-main);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+        .form-group-modal input:focus, .form-group-modal textarea:focus { border-color: var(--color-secondary); outline: none; }
+        .status-connection-indicator { font-size: 0.8rem; padding: 0.6rem; background-color: var(--color-bg-surface); border-radius: 6px; text-align: center; }
+
+        .modal-card-footer { padding: 1rem 1.25rem; border-top: 2px solid var(--color-border); display: flex; justify-content: flex-end; gap: 0.75rem; }
+        .btn-modal-action { padding: 0.5rem 1rem; border-radius: 6px; font-weight: 700; font-family: var(--font-display); font-size: 0.85rem; cursor: pointer; border: none; }
+        .btn-secondary-modal { background-color: var(--color-bg-surface); color: var(--color-text-main); }
+        .btn-success-modal { background-color: var(--color-primary); color: #1E293B; }
+        .btn-danger-modal { background-color: var(--color-danger); color: white; margin-right: auto; }
+
+        @media(max-width: 1000px) {
+            .grid-kpis-financieros { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media(max-width: 600px) {
+            .grid-kpis-financieros { grid-template-columns: 1fr; }
+            .auditoria-top-section { flex-direction: column; text-align: center; gap: 1rem; }
+            .table-header-row { flex-direction: column; gap: 1rem; width: 100%; align-items: stretch; }
+        }
+
+        /* Estilos de filtrado avanzado y consultas históricas */
+        .filters-container-auditoria {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-small-box {
+            width: 140px !important;
+        }
+
+        .btn-clear-filters {
+            background-color: var(--color-bg-surface);
+            color: var(--color-text-main);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 0.4rem 0.85rem;
+            font-size: 0.825rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition-all);
+        }
+
+        .btn-clear-filters:hover {
+            background-color: var(--color-border);
+            border-color: var(--color-text-muted);
+        }
+
+        @media(max-width: 900px) {
+            .table-header-row.flex-col-on-mobile {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+            }
+            .filters-container-auditoria {
+                width: 100%;
+            }
+            .table-search-box {
+                flex: 1 1 140px;
+            }
+            .filter-small-box {
+                flex: 1 1 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR UNIFICADO -->
+    <header>
+        <div class="header-brand">
+            <h1>📈 PANEL DE AUDITORÍA</h1>
+            <span class="role-badge">ADMINISTRATION</span>
+        </div>
+        
+        <nav class="nav-links">
+            <a href="cocina.html" class="nav-button">Cocina (KDS)</a>
+            <a href="caja.html" class="nav-button">Caja (Cuentas)</a>
+            <a href="auditoria.html" class="nav-button active">Auditoría Diaria</a>
+        </nav>
+
+        <div class="right-control-panel">
+            <div id="connection-status-badge" class="connection-indicator">
+                <span class="led-dot"></span>
+                <span id="connection-status-text">Buscando Servidor...</span>
+            </div>
+            <button class="btn-gear-config" onclick="SettingsModal.abrir()" title="Configuración de Base de Datos">⚙️</button>
+        </div>
+    </header>
+
+    <!-- ÁREA DE OPERACIÓN -->
+    <main class="auditoria-container">
+        
+        <!-- SECCIÓN DE EXPORTACIÓN Y TÍTULOS -->
+        <section class="auditoria-top-section">
+            <div class="title-block-aud">
+                <h2>📊 Consolidación Financiera Diaria</h2>
+                <p>Auditoría y conciliación de caja en tiempo real. Monitorea los ingresos generados por los meseros y métodos de pago.</p>
+            </div>
+            <button class="btn-exportar-csv" onclick="AuditoriaController.exportarCSV()">
+                <span>📥</span> Exportar Archivo CSV
+            </button>
+        </section>
+
+        <!-- SECCIÓN DE CARDS KPIS -->
+        <section class="grid-kpis-financieros">
+            
+            <div class="kpi-card">
+                <div class="kpi-icon">💰</div>
+                <div class="kpi-info">
+                    <span class="kpi-label">INGRESOS TOTALES</span>
+                    <span id="kpi-ventas-totales" class="kpi-value">$0.00</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">🧾</div>
+                <div class="kpi-info">
+                    <span class="kpi-label">ÓRDENES COBRADAS</span>
+                    <span id="kpi-transacciones-recuento" class="kpi-value">0</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">🏷️</div>
+                <div class="kpi-info">
+                    <span class="kpi-label">TICKET PROMEDIO</span>
+                    <span id="kpi-ticket-promedio" class="kpi-value">$0.00</span>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="kpi-icon">💳</div>
+                <div class="kpi-info">
+                    <span class="kpi-label">MÉTODO POPULAR</span>
+                    <span id="kpi-metodo-popular" class="kpi-value">---</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- SECCIÓN DE TABLA DE LOGS -->
+        <section class="table-auditoria-panel">
+            <div class="table-header-row flex-col-on-mobile">
+                <h3>📜 Historial Completo y Auditoría de Caja</h3>
+                <!-- Buscador multi-criterio avanzado -->
+                <div class="filters-container-auditoria">
+                    <div class="table-search-box">
+                        <span class="search-icon-glass">🔍</span>
+                        <input type="text" id="filtro-auditoria-input" onkeyup="filtrarYBuscar()" placeholder="Mesero, Método..." />
+                    </div>
+                    
+                    <div class="table-search-box filter-small-box">
+                        <span class="search-icon-glass">🪑</span>
+                        <input type="text" id="filtro-auditoria-mesa" onkeyup="filtrarYBuscar()" placeholder="Mesa (Ej: 1)..." />
+                    </div>
+
+                    <div class="table-search-box filter-small-box">
+                        <span class="search-icon-glass">📅</span>
+                        <input type="date" id="filtro-auditoria-fecha" onchange="filtrarYBuscar()" style="color-scheme: dark; font-family: var(--font-body);" />
+                    </div>
+
+                    <button class="btn-clear-filters" onclick="limpiarFiltrosAuditoria()" title="Limpiar todos los filtros"> Ver Todo</button>
+                </div>
+            </div>
+
+            <!-- Tabla principal contable -->
+            <div class="table-responsive-wrapper">
+                <table class="auditoria-table">
+                    <thead>
+                        <tr>
+                            <th>ID LOG</th>
+                            <th>REFERENCIA DE PEDIDO</th>
+                            <th>MÉTODO DE PAGO</th>
+                            <th>MESERO ATENDIENDO</th>
+                            <th>TOTAL COBRADO</th>
+                            <th>FECHA Y HORA DE TRANSACCIÓN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-auditoria-logs">
+                        <tr>
+                            <td colspan="6" class="text-center" style="padding: 2.5rem; color: var(--color-text-muted);">
+                                Cargando libro diario...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- INYECCIÓN COMPARTIDA DE DATOS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/supabase-client.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/realtime-listeners.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Inicializar auditoria
+            await AuditoriaController.init();
+
+            // Configurar indicación de red
+            const badge = document.getElementById('connection-status-badge');
+            const txt = document.getElementById('connection-status-text');
+            if (DataService.isReal()) {
+                badge.classList.add('live');
+                txt.textContent = 'CONECTADO NUBE';
+            } else {
+                badge.classList.remove('live');
+                txt.textContent = 'DEMO LOCAL';
+            }
+        });
+
+        // Puentes globales para conectar el panel de auditoría interactivo
+        function filtrarYBuscar() {
+            if (window.AuditoriaController) {
+                window.AuditoriaController.filtrarYBuscar();
+            }
+        }
+
+        function limpiarFiltrosAuditoria() {
+            if (window.AuditoriaController) {
+                window.AuditoriaController.limpiarFiltros();
+            }
+        }
+    </script>
+</body>
+</html>

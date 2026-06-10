@@ -1,0 +1,6 @@
+{
+  "name": "Restaurante",
+  "description": "Sistema de gestión de restaurante en tiempo real para meseros con sincronización en la nube (Supabase)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
