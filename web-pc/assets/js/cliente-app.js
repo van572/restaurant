@@ -244,7 +244,7 @@ function updateNotes(index, value) {
 }
 
 // 4. ENVÍO DEL PEDIDO
-async function confirmOrder() {
+async function enviarPedidoCliente() {
     if (state.carrito.length === 0 || state.isSending) return;
     
     const confirmacion = confirm("¿Deseas enviar tu pedido a la cocina?");
@@ -264,22 +264,34 @@ async function confirmOrder() {
         total: total
     };
 
-    console.log("Intentando enviar pedido:", pedidoData);
+    console.log("🚀 Iniciando proceso de envío de pedido CLIENTE...");
+    console.log("📦 Datos brutos del pedido:", pedidoData);
 
     try {
         const response = await DataService.crearPedido(pedidoData);
-        console.log("Respuesta de DataService:", response);
-        if (response) {
+        console.log("✅ Respuesta recibida de DataService:", response);
+        
+        if (response && (response.id || response.tempId)) {
+            console.log("🎉 Pedido procesado exitosamente. ID:", response.id || response.tempId);
             showSuccess();
         } else {
-            throw new Error("No se recibió respuesta del servidor");
+            console.error("❌ El pedido se envió pero la respuesta es inválida o vacía:", response);
+            throw new Error("Respuesta del servidor incompleta (ID faltante)");
         }
     } catch (e) {
-        console.error("Error enviando pedido:", e);
-        alert("Hubo un error al enviar tu pedido. Por favor, intenta de nuevo o llama a un mesero.");
+        console.group("🚨 ERROR CRÍTICO EN ENVÍO DE PEDIDO");
+        console.error("Mensaje de error:", e.message);
+        console.error("Traza completa:", e);
+        if (e.code) console.error("Código de error (Supabase?):", e.code);
+        if (e.details) console.error("Detalles técnicos:", e.details);
+        if (e.hint) console.error("Sugerencia de Supabase:", e.hint);
+        console.groupEnd();
+
+        alert("Hubo un problema de conexión con el sistema. Tu pedido NO se envió.\n\nError: " + (e.message || "Conexión fallida"));
+        
         state.isSending = false;
         btn.disabled = false;
-        btn.textContent = "Enviar pedido a cocina";
+        btn.innerHTML = 'Enviar pedido a cocina';
     }
 }
 

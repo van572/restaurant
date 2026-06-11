@@ -213,32 +213,45 @@ const DataService = {
                     .select();
                 
                 if (error) {
-                    console.error("Error retornado por Supabase:", error);
-                    // Si el error es por columnas faltantes (creado_en), intentamos loguearlo
+                    console.group("❌ Fallo en Supabase Insert (PGRST)");
+                    console.error("Mensaje:", error.message);
+                    console.error("Código:", error.code);
+                    console.error("Detalles:", error.details);
+                    console.error("Sugerencia:", error.hint);
+                    console.groupEnd();
                     throw error;
                 }
                 
                 // Si RLS está activo para SELECT pero no para INSERT, data puede ser null/vacío 
                 // aunque la inserción haya tenido éxito.
                 if (!data || data.length === 0) {
-                    console.warn("La inserción parece exitosa pero no se devolvieron datos (posible RLS). Retornando mock parcial.");
-                    return { ...payload, id: 'temp-' + Date.now(), creado_en: new Date().toISOString() };
+                    console.warn("⚠️ Advertencia: Supabase aceptó el insert pero no devolvió datos (RLS activo para SELECT pero denegado para INSERT/SELECT?).");
+                    return { ...payload, id: null, tempId: 'sent-' + Date.now(), creado_en: new Date().toISOString() };
                 }
                 
                 return data[0];
             } catch (err) {
-                console.error("Fallo crítico en DataService.crearPedido:", err);
+                console.error("🛑 Excepción en DataService.crearPedido:", err);
                 
-                // Mostrar alerta informativa al usuario para que sepa qué falló exactamente
+                // Mostrar alerta descriptiva
                 let msg = err.message || "Error desconocido";
                 if (err.code === '42703') msg = "Error de esquema: Falta una columna en la tabla 'pedidos' (posiblemente 'mesa', 'mesero', 'items', 'total' o 'estado')";
                 if (err.code === '42P01') msg = "Error de esquema: La tabla 'pedidos' no existe en Supabase";
                 if (err.code === 'PGRST116') msg = "Error de RLS: No tienes permisos para insertar o leer en la tabla 'pedidos'";
+                if (err.code === '23505') msg = "Error de unicidad: Ya existe un registro con esa clave duplicada";
                 
-                alert("⚠️ Error de Supabase: " + msg);
+                const errorInfo = `⚠️ Error de Supabase:\n${msg}\n\nCódigo: ${err.code || 'N/A'}`;
+                console.warn(errorInfo);
                 
-                // Como último recurso, guardamos localmente para no perder el pedido en esta pestaña
-                return insertLocalPedido(pedidoCustom);
+                // Si el error es crítico de internet o config, seguimos con el fallback
+                // Pero si es de esquema, lanzamos el error para que el desarrollador lo vea en la consola
+                if (err.code && (err.code.startsWith('42') || err.code.startsWith('PGRST'))) {
+                     throw err; // Forzar que cliente-app.js vea este error técnico
+                }
+
+                console.warn("Intentando guardar el pedido LOCALMENTE como respaldo...");
+                const local = insertLocalPedido(pedidoCustom);
+                return { ...local, tempId: 'local-' + local.id };
             }
         } else {
             return insertLocalPedido(pedidoCustom);
