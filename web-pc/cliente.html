@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Menú Digital - Restaurante</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0F172A;
+            --bg-surface: #1E293B;
+            --bg-card: #334155;
+            --bg-input: #1E293B;
+            --primary: #10B981;
+            --primary-dim: rgba(16, 185, 129, 0.15);
+            --accent: #F59E0B;
+            --accent-dim: rgba(245, 158, 11, 0.15);
+            --danger: #EF4444;
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --text-dim: #64748B;
+            --border: #475569;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── HEADER ── */
+        .qr-header {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        .qr-header-left { display: flex; flex-direction: column; gap: 0.15rem; }
+        .qr-header-left h1 {
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .qr-header-left .mesa-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        .qr-header-left .mesa-label strong {
+            color: var(--primary);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+        .qr-header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .cart-pill {
+            background: var(--primary-dim);
+            border: 1px solid rgba(16,185,129,0.25);
+            border-radius: 999px;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .cart-pill.has-items { background: var(--primary); color: #0F172A; }
+        .cart-pill .cart-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            border-radius: 999px;
+            width: 20px;
+            height: 20px;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+        .cart-pill.has-items .cart-count { background: rgba(0,0,0,0.15); }
+        .conn-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent);
+            flex-shrink: 0;
+        }
+        .conn-dot.live { background: var(--primary); }
+
+        /* ── ERROR BANNER (mesa no detectada) ── */
+        .qr-error-banner {
+            display: none;
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.25);
+            border-radius: var(--radius);
+            margin: 1rem 1.25rem;
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+        .qr-error-banner.visible { display: block; }
+        .qr-error-banner .err-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .qr-error-banner h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; }
+        .qr-error-banner p { font-size: 0.85rem; color: var(--text-muted); }
+
+        /* ── CATEGORY TABS ── */
+        .category-tabs {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            overflow-x: auto;
+            flex-shrink: 0;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .category-tabs::-webkit-scrollbar { display: none; }
+        .cat-tab {
+            flex-shrink: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 0.45rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .cat-tab.active {
+            background: var(--primary-dim);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── MENU LIST (scrollable) ── */
+        .menu-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 1.25rem 1rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        .menu-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .menu-item-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: border-color 0.2s;
+        }
+        .menu-item-card:active { border-color: var(--primary); }
+        .item-emoji {
+            width: 48px; height: 48px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        .item-info { flex: 1; min-width: 0; }
+        .item-info .item-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+        .item-info .item-desc {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 0.1rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .item-info .item-price {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-top: 0.25rem;
+        }
+        .btn-add-item {
+            flex-shrink: 0;
+            background: var(--primary-dim);
+            border: 1px solid rgba(16,185,129,0.25);
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-body);
+            white-space: nowrap;
+        }
+        .btn-add-item:active { background: var(--primary); color: #0F172A; }
+
+        /* ── BOTTOM BAR ── */
+        .bottom-bar {
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem 1.25rem calc(0.75rem + var(--safe-bottom));
+            flex-shrink: 0;
+            display: none;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .bottom-bar.visible { display: flex; }
+        .bar-totals { flex: 1; display: flex; flex-direction: column; }
+        .bar-totals .bar-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.03em; }
+        .bar-totals .bar-total {
+            font-family: var(--font-mono);
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .btn-send-order {
+            background: var(--primary);
+            border: none;
+            color: #0F172A;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.9rem;
+            padding: 0.8rem 1.5rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .btn-send-order:active { transform: scale(0.97); }
+        .btn-send-order:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-send-order.sent {
+            background: var(--accent);
+            color: #0F172A;
+            opacity: 0.8;
+        }
+
+        /* ── CART DRAWER (modal lateral) ── */
+        .cart-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            justify-content: flex-end;
+        }
+        .cart-overlay.open { display: flex; }
+        .cart-drawer {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-body);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        .cart-drawer-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cart-drawer-header h2 {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+        }
+        .btn-close-cart {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+        .cart-drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .cart-empty {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+        .cart-empty .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .cart-item-row {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem;
+        }
+        .cart-item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+        .cart-item-name { font-weight: 600; font-size: 0.9rem; }
+        .cart-item-price { font-family: var(--font-mono); font-weight: 700; color: var(--primary); font-size: 0.85rem; }
+        .cart-item-notes {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            color: var(--text-main);
+            font-family: var(--font-body);
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+            resize: none;
+        }
+        .cart-item-notes::placeholder { color: var(--text-dim); }
+        .cart-item-notes:focus { outline: none; border-color: var(--primary); }
+        .cart-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .btn-qty {
+            width: 32px; height: 32px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-main);
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .btn-qty:active { border-color: var(--primary); color: var(--primary); }
+        .btn-qty.danger:active { border-color: var(--danger); color: var(--danger); }
+        .qty-display {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.95rem;
+            min-width: 1.5rem;
+            text-align: center;
+        }
+        .cart-drawer-footer {
+            padding: 1rem 1.25rem calc(1rem + var(--safe-bottom));
+            border-top: 1px solid var(--border);
+        }
+        .cart-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .cart-total-row .label { font-weight: 700; font-size: 0.85rem; color: var(--text-muted); }
+        .cart-total-row .value {
+            font-family: var(--font-mono);
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        /* ── SUCCESS STATE ── */
+        .success-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+        .success-screen.visible { display: flex; }
+        .success-screen .check-icon {
+            width: 80px; height: 80px;
+            background: var(--primary-dim);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .success-screen h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .success-screen p { font-size: 0.9rem; color: var(--text-muted); max-width: 320px; }
+        .success-screen .order-id {
+            font-family: var(--font-mono);
+            color: var(--primary);
+            font-weight: 700;
+            margin-top: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        /* ── LOADING SPINNER ── */
+        .spinner {
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 2px solid rgba(15,23,42,0.15);
+            border-top-color: #0F172A;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── NOTIFICACIONES ── */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+            width: calc(100% - 2.5rem);
+            max-width: 400px;
+        }
+        .toast {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: var(--shadow);
+            animation: slideDown 0.3s ease;
+            pointer-events: auto;
+            text-align: center;
+        }
+        .toast.success { border-left: 4px solid var(--primary); color: var(--primary); }
+        .toast.error { border-left: 4px solid var(--danger); color: var(--danger); }
+        @keyframes slideDown {
+            from { transform: translateY(-120%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ─── TOAST CONTAINER ─── -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ─── HEADER ─── -->
+    <header class="qr-header">
+        <div class="qr-header-left">
+            <h1>🍽️ Menú Digital</h1>
+            <span class="mesa-label">Mesa <strong id="mesa-display">---</strong></span>
+        </div>
+        <div class="qr-header-right">
+            <span class="conn-dot" id="conn-dot"></span>
+            <button class="cart-pill" id="cart-pill-btn" onclick="ClienteApp.abrirCarrito()">
+                🛒 <span class="cart-count" id="cart-count-badge">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ─── ERROR BANNER (sin mesa) ─── -->
+    <div class="qr-error-banner" id="qr-error-banner">
+        <div class="err-icon">📱</div>
+        <h2>Mesa no detectada</h2>
+        <p>Por favor escanea el código QR ubicado en tu mesa para acceder al menú digital.</p>
+    </div>
+
+    <!-- ─── CONTENIDO PRINCIPAL ─── -->
+    <main id="main-content" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+
+        <!-- Category Tabs -->
+        <nav class="category-tabs" id="category-tabs"></nav>
+
+        <!-- Menu Scrollable -->
+        <div class="menu-scroll" id="menu-scroll">
+            <div class="menu-grid" id="menu-grid"></div>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div class="bottom-bar" id="bottom-bar">
+            <div class="bar-totals">
+                <span class="bar-label">TU PEDIDO</span>
+                <span class="bar-total" id="bar-total">$0.00</span>
+            </div>
+            <button class="btn-send-order" id="btn-send-order" onclick="ClienteApp.enviarPedido()">
+                Enviar Pedido
+            </button>
+        </div>
+
+        <!-- Success Screen -->
+        <div class="success-screen" id="success-screen">
+            <div class="check-icon">✅</div>
+            <h2>¡Pedido Enviado!</h2>
+            <p>Tu orden ha sido registrada y está en espera de preparación. Pronto recibirás tus platillos.</p>
+            <div class="order-id" id="order-id-display">#---</div>
+        </div>
+    </main>
+
+    <!-- ─── CART DRAWER ─── -->
+    <div class="cart-overlay" id="cart-overlay" onclick="if(event.target===this)ClienteApp.cerrarCarrito()">
+        <div class="cart-drawer">
+            <div class="cart-drawer-header">
+                <h2>🛒 Tu Pedido</h2>
+                <button class="btn-close-cart" onclick="ClienteApp.cerrarCarrito()">✕</button>
+            </div>
+            <div class="cart-drawer-body" id="cart-drawer-body">
+                <div class="cart-empty" id="cart-empty-msg">
+                    <div class="empty-icon">🛒</div>
+                    <p>Tu carrito está vacío</p>
+                </div>
+            </div>
+            <div class="cart-drawer-footer">
+                <div class="cart-total-row">
+                    <span class="label">TOTAL</span>
+                    <span class="value" id="cart-drawer-total">$0.00</span>
+                </div>
+                <button class="btn-send-order" style="width:100%;" onclick="ClienteApp.cerrarCarrito();document.getElementById('bottom-bar').scrollIntoView({behavior:'smooth'})">
+                    Cerrar y Continuar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── SCRIPTS ─── -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/supabase-client.js"></script>
+    <script src="assets/js/cliente-app.js"></script>
+</body>
+</html>
