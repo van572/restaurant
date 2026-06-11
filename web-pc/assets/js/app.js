@@ -1002,6 +1002,56 @@ const MenuEditor = {
 
 window.MenuEditor = MenuEditor;
 
+// ----------------------------------------------------
+// 7. MONITOR DE CONEXIÓN CON SUPABASE
+// ----------------------------------------------------
+const ConnectionMonitor = {
+    async init() {
+        const paneles = document.querySelectorAll('.right-control-panel');
+        paneles.forEach(panel => {
+            let statusBadge = panel.querySelector('#supabase-connection-status');
+            if (!statusBadge) {
+                statusBadge = document.createElement('div');
+                statusBadge.id = 'supabase-connection-status';
+                statusBadge.style.display = 'flex';
+                statusBadge.style.alignItems = 'center';
+                statusBadge.style.gap = '6px';
+                statusBadge.style.fontSize = '0.75rem';
+                statusBadge.style.padding = '4px 10px';
+                statusBadge.style.borderRadius = '20px';
+                statusBadge.style.border = '1px solid var(--color-border)';
+                statusBadge.style.marginLeft = '8px';
+                statusBadge.style.cursor = 'help';
+                panel.appendChild(statusBadge);
+            }
+            this.updateUI(statusBadge, { success: false, message: "Verificando..." });
+        });
+
+        await this.check();
+        // Verificar periódicamente
+        setInterval(() => this.check(), 30000); 
+    },
+
+    async check() {
+        if (typeof DataService !== 'undefined' && DataService.checkConnection) {
+            const result = await DataService.checkConnection();
+            const badges = document.querySelectorAll('#supabase-connection-status');
+            badges.forEach(badge => this.updateUI(badge, result));
+        }
+    },
+
+    updateUI(el, result) {
+        const isReal = DataService.isReal();
+        const color = result.success ? '#10B981' : (isReal ? '#EF4444' : '#F59E0B');
+        const icon = result.success ? '●' : '○';
+        el.style.borderColor = color;
+        el.style.color = color;
+        el.innerHTML = `<span style="font-size: 1.2rem; line-height: 1;">${icon}</span> <span style="font-weight: 600;">${result.message}</span>`;
+        el.title = result.message;
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     WaiterSession.init();
+    ConnectionMonitor.init();
 });

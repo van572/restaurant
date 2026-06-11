@@ -149,6 +149,20 @@ const DataService = {
         location.reload();
     },
 
+    // Verificar si la conexión con Supabase es funcional
+    async checkConnection() {
+        if (!isRealSupabase) return { success: false, message: "Supabase no configurado (Modo Demo Local)" };
+        try {
+            // Intentamos una consulta rápida y ligera
+            const { error } = await supabaseClient.from('pedidos').select('id').limit(1);
+            if (error) throw error;
+            return { success: true, message: "Conectado a la nube" };
+        } catch (err) {
+            console.error("Fallo de conexión real:", err);
+            return { success: false, message: "Sin conexión a la nube" };
+        }
+    },
+
     // Obtener lista completa de pedidos activos
     async fetchMenu() {
         if (isRealSupabase) {
@@ -361,6 +375,25 @@ const DataService = {
             return () => {
                 localSyncChannel.removeEventListener('message', handler);
             };
+        }
+    },
+
+    // Suscribirse reactivamente a cambios en el menú
+    suscribirAMenu(onUpdateCallback) {
+        if (isRealSupabase) {
+            const channel = supabaseClient
+                .channel('menu-realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'menu' }, (payload) => {
+                    console.log('Cambio detectado en el Menú:', payload);
+                    onUpdateCallback(payload);
+                })
+                .subscribe();
+            return () => {
+                supabaseClient.removeChannel(channel);
+            };
+        } else {
+            // No hay simulación local para menú por ahora
+            return () => {};
         }
     }
 };

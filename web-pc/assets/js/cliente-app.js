@@ -42,6 +42,19 @@ async function initApp() {
 
     // Cargar Menú
     await cargarMenu();
+
+    // Sincronizar conexión Supabase UI
+    const conn = await DataService.checkConnection();
+    console.log("Supabase Connection Status:", conn.message);
+    if (!conn.success && DataService.isReal()) {
+        console.warn("⚠️ Advertencia: El cliente tiene configurado Supabase pero no hay respuesta del servidor.");
+    }
+
+    // Suscribirse a cambios en tiempo real del menú
+    DataService.suscribirAMenu(() => {
+        console.log("Sincronizando menú por actualización en tiempo real...");
+        cargarMenu();
+    });
 }
 
 function showQRError() {
