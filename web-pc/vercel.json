@@ -2,18 +2,9 @@
   "version": 2,
   "cleanUrls": true,
   "trailingSlash": false,
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
-    }
-  ],
   "rewrites": [
-    { "source": "/", "destination": "/caja.html" }
+    { "source": "/", "destination": "/web-pc/caja.html" },
+    { "source": "/cliente", "destination": "/web-pc/cliente.html" },
+    { "source": "/cocina", "destination": "/web-pc/cocina.html" }
   ]
 }
