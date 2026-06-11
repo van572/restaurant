@@ -47,7 +47,7 @@ const CocinaController = {
         this.renderMenu();
         await this.cargarYRenderizar();
 
-        // Enlace en tiempo real de Supabase / Broadcast Local
+        // Enlace en tiempo real de Supabase
         window.onRealtimePedidosUpdate = async (payload) => {
             console.log("🍳 Cocina recibió notificación de cambio de datos.");
             await this.cargarYRenderizar();
@@ -656,7 +656,7 @@ const SettingsModal = {
     },
 
     desvincular() {
-        if (confirm("¿Desvincular Supabase de la nube y volver al modo simulación local?")) {
+        if (confirm("¿Estás seguro de que deseas eliminar la configuración de Supabase? El sistema dejará de funcionar hasta que se configure de nuevo.")) {
             DataService.resetConfig();
             this.cerrar();
         }
@@ -686,11 +686,11 @@ const SettingsModal = {
                         <textarea id="input-set-key" rows="2" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
                     </div>
                     <div class="status-connection-indicator">
-                        Estatus actual: <strong>${DataService.isReal() ? '🟠 Conectado a la Nube' : '🟢 Servidor Demo Local activo'}</strong>
+                        Estatus actual: <strong>${DataService.isReal() ? '🟢 Conectado a la Nube' : '🔴 Supabase No Configurado'}</strong>
                     </div>
                 </div>
                 <div class="modal-card-footer">
-                    ${DataService.isReal() ? `<button class="btn-modal-action btn-danger-modal" onclick="SettingsModal.desvincular()">Desvincular de la Nube</button>` : ''}
+                    ${DataService.isReal() ? `<button class="btn-modal-action btn-danger-modal" onclick="SettingsModal.desvincular()">Eliminar Configuración</button>` : ''}
                     <button class="btn-modal-action btn-secondary-modal" onclick="SettingsModal.cerrar()">Cancelar</button>
                     <button class="btn-modal-action btn-success-modal" onclick="SettingsModal.guardar()">Guardar y Conectar</button>
                 </div>

@@ -72,19 +72,28 @@ function showQRError() {
 
 async function cargarMenu() {
     try {
-        let menuData = await DataService.fetchMenu();
+        const menuData = await DataService.fetchMenu();
         
         if (!menuData || menuData.length === 0) {
-            console.log("Usando menú por defecto (Supabase no configurado o tabla vacía)");
-            menuData = MENU_DEFAULT_CLIENTE;
+            console.warn("La tabla de menú en Supabase está vacía.");
+            state.menu = [];
+            renderMenu();
+            return;
         }
         
         state.menu = menuData;
         renderMenu();
     } catch (e) {
         console.error("Error cargando menú:", e);
-        state.menu = MENU_DEFAULT_CLIENTE;
-        renderMenu();
+        const container = document.getElementById('main-content');
+        container.innerHTML = `
+            <div class="qr-alert" style="border-color: var(--danger);">
+                <ion-icon name="cloud-offline-outline" style="font-size: 3rem; color: var(--danger); margin-bottom: 12px;"></ion-icon>
+                <p><strong>Error de Conexión</strong></p>
+                <p>No se pudo obtener el menú del restaurante. Por favor, verifica tu conexión a internet o contacta al personal.</p>
+                <button class="confirm-btn" style="margin-top: 20px;" onclick="location.reload()">Reintentar</button>
+            </div>
+        `;
     }
 }
 
