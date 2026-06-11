@@ -569,8 +569,22 @@
         </div>
     </header>
 
+    <!-- TAB PANEL SUPERIOR (NUEVO) -->
+    <div style="background: var(--color-bg-depth); border-bottom: 1px solid var(--color-border); padding: 0.5rem 1.75rem; display: flex; gap: 1rem;">
+        <button onclick="switchTab('ventas')" id="tab-ventas" class="nav-button active" style="background: none; border: none; cursor: pointer;">💰 Ventas & Cobros</button>
+        <button onclick="switchTab('solicitudes')" id="tab-solicitudes" class="nav-button" style="background: none; border: none; cursor: pointer;">🛎️ Solicitudes Mesa</button>
+        <button onclick="switchTab('menu')" id="tab-menu" class="nav-button" style="background: none; border: none; cursor: pointer;">📋 Gestión Menú</button>
+    </div>
+
+    <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
+    <div id="notification-container" style="position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+    <audio id="notification-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+
     <!-- ENTIDAD EXPOSITORA CENTRAL -->
-    <main class="caja-workspace">
+    <main id="tab-content-ventas" class="caja-workspace">
         
         <!-- SECCIÓN IZQUIERDA: MESAS CON CUENTA -->
         <section class="mesa-list-container">
@@ -659,6 +673,37 @@
 
     </main>
 
+    <!-- PANEL DE SOLICITUDES (NUEVO) -->
+    <main id="tab-content-solicitudes" class="caja-workspace" style="display: none; grid-template-columns: 1fr;">
+        <section class="mesa-list-container">
+            <div class="section-header" style="margin-bottom: 20px;">
+                <h2>🛎️ Avisos y Solicitudes de Mesas</h2>
+                <p style="color: var(--color-text-muted); font-size: 0.9rem;">Atiende las llamadas de asistencia y peticiones de cuenta en tiempo real.</p>
+            </div>
+            <div id="solicitudes-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+                <!-- Solicitudes inyectadas -->
+            </div>
+        </section>
+    </main>
+
+    <!-- PANEL DE GESTIÓN DE MENÚ (NUEVO) -->
+    <main id="tab-content-menu" class="caja-workspace" style="display: none; grid-template-columns: 1fr;">
+        <section class="mesa-list-container">
+            <div class="section-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2>📋 Administración del Menú</h2>
+                    <p style="color: var(--color-text-muted); font-size: 0.9rem;">Cambia precios, disponibilidad y agrega nuevos platos.</p>
+                </div>
+                <button onclick="AdminMenuController.agregarNuevo()" class="btn-checkout checkout-efectivo" style="flex-direction: row; font-size: 0.9rem; padding: 8px 16px;">
+                    <span>➕</span> Nuevo Plato
+                </button>
+            </div>
+            <div id="admin-menu-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px;">
+                <!-- Items del menú inyectados -->
+            </div>
+        </section>
+    </main>
+
     <!-- DATOS Y LOGICA COMPARTIDA -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/supabase-client.js"></script>
@@ -666,9 +711,25 @@
     <script src="assets/js/realtime-listeners.js"></script>
 
     <script>
+        function switchTab(tab) {
+            // Content
+            document.getElementById('tab-content-ventas').style.display = tab === 'ventas' ? 'grid' : 'none';
+            document.getElementById('tab-content-solicitudes').style.display = tab === 'solicitudes' ? 'grid' : 'none';
+            document.getElementById('tab-content-menu').style.display = tab === 'menu' ? 'grid' : 'none';
+            
+            // Buttons
+            document.getElementById('tab-ventas').classList.toggle('active', tab === 'ventas');
+            document.getElementById('tab-solicitudes').classList.toggle('active', tab === 'solicitudes');
+            document.getElementById('tab-menu').classList.toggle('active', tab === 'menu');
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
+            AuthManager.checkAuth();
+
             // Inicializar caja
             await CajaController.init();
+            await SolicitudesController.init();
+            await AdminMenuController.init();
 
             // Configurar indicación de red
             const badge = document.getElementById('connection-status-badge');

@@ -375,8 +375,32 @@
             <div>
                 <h1>La Cocina Real</h1>
             </div>
-            <div id="mesa-indicator" class="mesa-badge">Cargando mesa...</div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button onclick="solicitarMesa('mesero')" style="background: var(--bg); border: 1px solid var(--border); padding: 6px; border-radius: 50%; color: var(--primary); display: flex;" title="Llamar al mesero">
+                    <ion-icon name="notifications-outline" style="font-size: 1.2rem;"></ion-icon>
+                </button>
+                <button onclick="solicitarMesa('cuenta')" style="background: var(--bg); border: 1px solid var(--border); padding: 6px; border-radius: 50%; color: #8B5CF6; display: flex;" title="Pedir la cuenta">
+                    <ion-icon name="card-outline" style="font-size: 1.2rem;"></ion-icon>
+                </button>
+                <div id="mesa-indicator" class="mesa-badge">Cargando mesa...</div>
+            </div>
         </header>
+
+        <!-- Barra de Estado de Pedido Activo (Flotante Superior) -->
+        <div id="order-status-overlay" style="display: none; background: rgba(26, 28, 30, 0.95); position: fixed; top: 80px; left: 16px; right: 16px; z-index: 150; padding: 12px 16px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); align-items: center; gap: 12px; color: white;">
+            <div style="background: var(--primary); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                <ion-icon id="status-step-icon" name="timer-outline" style="font-size: 1.2rem;"></ion-icon>
+            </div>
+            <div style="flex: 1;">
+                <div id="status-step-text" style="font-size: 0.85rem; font-weight: 700; margin-bottom: 4px;">Recibido 📝</div>
+                <div style="background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; width: 100%;">
+                    <div id="status-progress-bar" style="background: var(--primary); height: 100%; width: 33%; border-radius: 2px; transition: width 0.5s ease-in-out;"></div>
+                </div>
+            </div>
+            <button onclick="this.parentElement.style.display='none'" style="background: none; border: none; color: white; opacity: 0.5;">
+                <ion-icon name="close"></ion-icon>
+            </button>
+        </div>
 
         <div id="main-content" class="container">
             <!-- Los productos se cargarán dinámicamente aquí -->

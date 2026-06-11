@@ -555,8 +555,17 @@
         </div>
     </aside>
 
+    <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
+    <div id="notification-container" style="position: fixed; top: 80px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+    <!-- AUDIO DE NOTIFICACIÓN -->
+    <audio id="notification-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+
     <!-- DEPENDENCIAS SCRIPT JS DE CDN Y INTERNAS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/js/supabase-client.js"></script>
     <script src="assets/js/app.js"></script>
     <script src="assets/js/realtime-listeners.js"></script>

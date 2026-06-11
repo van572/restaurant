@@ -207,6 +207,78 @@ const DataService = {
         return () => supabaseClient.removeChannel(channel);
     },
 
+    // --- NUEVOS MÉTODOS PARA SOLICITUDES Y GESTIÓN ---
+
+    async crearSolicitud(mesa, tipo) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const payload = {
+            mesa: mesa,
+            tipo: tipo, // 'mesero' | 'cuenta'
+            estado: 'pendiente',
+            creado_en: new Date().toISOString()
+        };
+        const { data, error } = await supabaseClient.from('solicitudes_servicio').insert([payload]).select();
+        if (error) throw error;
+        return data ? data[0] : payload;
+    },
+
+    async fetchSolicitudes() {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { data, error } = await supabaseClient
+            .from('solicitudes_servicio')
+            .select('*')
+            .eq('estado', 'pendiente')
+            .order('creado_en', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    },
+
+    async atenderSolicitud(id) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { error } = await supabaseClient
+            .from('solicitudes_servicio')
+            .update({ estado: 'atendido' })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    suscribirASolicitudes(onUpdateCallback) {
+        if (!isRealSupabase) return () => {};
+        const channel = supabaseClient
+            .channel('solicitudes-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes_servicio' }, (payload) => {
+                onUpdateCallback(payload);
+            })
+            .subscribe();
+        return () => supabaseClient.removeChannel(channel);
+    },
+
+    async actualizarDisponibilidadMenu(id, disponible) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { error } = await supabaseClient
+            .from('menu')
+            .update({ disponible: disponible })
+            .eq('id', id);
+        if (error) throw error;
+    },
+
+    async guardarItemMenu(item) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        if (item.id) {
+            const { error } = await supabaseClient.from('menu').update(item).eq('id', item.id);
+            if (error) throw error;
+        } else {
+            const { error } = await supabaseClient.from('menu').insert([item]);
+            if (error) throw error;
+        }
+    },
+
+    async eliminarItemMenu(id) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { error } = await supabaseClient.from('menu').delete().eq('id', id);
+        if (error) throw error;
+    },
+
     suscribirAAuditoria(onUpdateCallback) {
         if (!isRealSupabase) return () => {};
         const channel = supabaseClient

@@ -46,16 +46,19 @@ async function initApp() {
     // Sincronizar conexión Supabase UI
     const conn = await DataService.checkConnection();
     console.log("Supabase Connection Status:", conn.message);
-    if (!conn.success && DataService.isReal()) {
-        console.warn("⚠️ Advertencia: El cliente tiene configurado Supabase pero no hay respuesta del servidor.");
-        alert("Atención: No se pudo conectar con el servidor en la nube. Los pedidos podrían no llegar a la cocina. Verifica tu conexión a internet o la configuración del sistema.");
-    }
 
     // Suscribirse a cambios en tiempo real del menú
     DataService.suscribirAMenu(() => {
         console.log("Sincronizando menú por actualización en tiempo real...");
         cargarMenu();
     });
+
+    // Restaurar pedido activo si existe
+    const activeOrderId = sessionStorage.getItem('active_order_id');
+    if (activeOrderId) {
+        state.activeOrderId = activeOrderId;
+        startTrackingOrder(activeOrderId);
+    }
 }
 
 function showQRError() {
@@ -114,6 +117,9 @@ function renderMenu() {
         const section = document.createElement('section');
         section.className = 'categoria-section';
         
+        const products = state.menu.filter(p => p.categoria === cat);
+        if (products.length === 0) return;
+
         const title = document.createElement('h2');
         title.className = 'categoria-title';
         title.innerHTML = `<span>${getCategoryEmoji(cat)}</span> ${cat}`;
@@ -122,19 +128,24 @@ function renderMenu() {
         const grid = document.createElement('div');
         grid.className = 'menu-grid';
         
-        const products = state.menu.filter(p => p.categoria === cat);
         products.forEach(prod => {
+            const isAvailable = prod.disponible !== false;
             const card = document.createElement('div');
-            card.className = 'platillo-card';
+            card.className = `platillo-card ${isAvailable ? '' : 'agotado'}`;
+            if (!isAvailable) {
+                card.style.opacity = '0.6';
+                card.style.filter = 'grayscale(0.8)';
+            }
+            
             card.innerHTML = `
                 <div class="platillo-emoji">${prod.emoji || '🍽️'}</div>
                 <div class="platillo-info">
-                    <div class="platillo-name">${prod.nombre}</div>
+                    <div class="platillo-name">${prod.nombre} ${isAvailable ? '' : '<span style="font-size:0.6rem; color:var(--danger);">(AGOTADO)</span>'}</div>
                     <div class="platillo-desc">${prod.descripcion || ''}</div>
                     <div class="platillo-footer">
                         <div class="platillo-price">$${parseFloat(prod.precio).toFixed(2)}</div>
-                        <button class="add-btn" onclick="addToCart('${prod.nombre}', ${prod.precio})">
-                            <ion-icon name="add"></ion-icon>
+                        <button class="add-btn" ${isAvailable ? '' : 'disabled'} onclick="addToCart('${prod.nombre}', ${prod.precio})">
+                            <ion-icon name="${isAvailable ? 'add' : 'ban-outline'}"></ion-icon>
                         </button>
                     </div>
                 </div>
@@ -278,31 +289,69 @@ async function enviarPedidoCliente() {
 
     try {
         const response = await DataService.crearPedido(pedidoData);
-        console.log("✅ Respuesta recibida de DataService:", response);
-        
-        if (response && (response.id || response.tempId)) {
-            console.log("🎉 Pedido procesado exitosamente. ID:", response.id || response.tempId);
+        if (response && response.id) {
+            state.activeOrderId = response.id;
+            sessionStorage.setItem('active_order_id', response.id);
+            startTrackingOrder(response.id);
             showSuccess();
         } else {
-            console.error("❌ El pedido se envió pero la respuesta es inválida o vacía:", response);
-            throw new Error("Respuesta del servidor incompleta (ID faltante)");
+            throw new Error("Respuesta del servidor incompleta");
         }
     } catch (e) {
-        console.group("🚨 ERROR CRÍTICO EN ENVÍO DE PEDIDO");
-        console.error("Mensaje de error:", e.message);
-        console.error("Traza completa:", e);
-        if (e.code) console.error("Código de error (Supabase?):", e.code);
-        if (e.details) console.error("Detalles técnicos:", e.details);
-        if (e.hint) console.error("Sugerencia de Supabase:", e.hint);
-        console.groupEnd();
-
-        alert("Hubo un problema de conexión con el sistema. Tu pedido NO se envió.\n\nError: " + (e.message || "Conexión fallida"));
-        
+        alert("Error de conexión: " + e.message);
         state.isSending = false;
         btn.disabled = false;
         btn.innerHTML = 'Enviar pedido a cocina';
     }
 }
+
+// 5. NUEVA LOGICA DE SEGUIMIENTO Y SERVICIOS
+function startTrackingOrder(orderId) {
+    console.log("📍 Siguiendo pedido:", orderId);
+    DataService.suscribirAPedidos((payload) => {
+        if (payload.new && payload.new.id == orderId) {
+            updateStatusUI(payload.new.estado);
+        }
+    });
+
+    // Mostrar barra de estado en el DOM si el main content ya tiene el éxito
+    setTimeout(() => updateStatusUI('pendiente'), 500); 
+}
+
+function updateStatusUI(estado) {
+    const textEl = document.getElementById('status-step-text');
+    const progressEl = document.getElementById('status-progress-bar');
+    
+    if (!textEl) return;
+
+    let text = "Recibido 📝";
+    let width = "33%";
+
+    if (estado === 'cocinando') {
+        text = "En Preparación 🍳";
+        width = "66%";
+    } else if (estado === 'listo') {
+        text = "¡Listo para Servir! 🍽️";
+        width = "100%";
+    } else if (estado === 'entregado' || estado === 'pagado') {
+        text = "Entregado ✅";
+        width = "100%";
+    }
+
+    textEl.textContent = `ESTADO: ${text}`;
+    if (progressEl) progressEl.style.width = width;
+}
+
+async function solicitarMesa(tipo) {
+    try {
+        await DataService.crearSolicitud(`Mesa ${state.mesa}`, tipo);
+        alert(tipo === 'cuenta' ? "Petición de cuenta enviada. El cajero te atenderá en breve." : "Mesero notificado. Ya vamos para allá.");
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+}
+
+window.solicitarMesa = solicitarMesa;
 
 function showSuccess() {
     closeCart();
