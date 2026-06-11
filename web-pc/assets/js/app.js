@@ -37,15 +37,53 @@ const formatCurrency = (monto) => {
 };
 
 // ----------------------------------------------------
-// 0. SISTEMA DE NOTIFICACIONES Y SONIDO
+// 0. SISTEMA DE NOTIFICACIONES Y SONIDO (Web Audio API)
 // ----------------------------------------------------
 const AppNotifications = {
-    playAlert() {
-        const audio = document.getElementById('notification-sound');
-        if (audio) {
-            audio.currentTime = 0;
-            audio.play().catch(e => console.warn("Auto-play bloqueado por el navegador:", e));
+    audioCtx: null,
+    audioBuffer: null,
+    isInitialized: false,
+
+    async initAudio() {
+        if (this.isInitialized) return;
+        
+        try {
+            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const response = await fetch('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            const arrayBuffer = await response.arrayBuffer();
+            this.audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+            this.isInitialized = true;
+            console.log("🔊 Web Audio API activada.");
+            
+            // Ocultar botón de activación si existe
+            const btn = document.getElementById('btn-enable-audio');
+            if (btn) btn.style.display = 'none';
+            
+            this.playAlert(); // Sonido de prueba
+        } catch (e) {
+            console.error("No se pudo iniciar el audio:", e);
         }
+    },
+
+    playAlert() {
+        if (!this.isInitialized || !this.audioBuffer) {
+            // Fallback al elemento audio estático si falla la Web Audio API
+            const audio = document.getElementById('notification-sound');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            }
+            return;
+        }
+
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = this.audioBuffer;
+        source.connect(this.audioCtx.destination);
+        source.start(0);
     },
 
     show(mensaje, tipo = 'info') {

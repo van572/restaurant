@@ -33,12 +33,16 @@ function checkUrlAutoConfig() {
         
         if (sUrl && sKey) {
             console.log("🛠️ Detectada configuración de Supabase en URL. Auto-configurando...");
-            localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify({ url: sUrl, anonKey: sKey }));
+            const configObj = { url: sUrl.trim(), anonKey: sKey.trim() };
+            localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(configObj));
+            
+            // Limpiar solo los parámetros de configuración de la URL para estética, manteniendo el resto (mesa, etc.)
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.delete('sUrl');
             newUrl.searchParams.delete('sKey');
             window.history.replaceState({}, '', newUrl.toString());
-            return { url: sUrl, anonKey: sKey };
+            
+            return configObj;
         }
     } catch (e) {
         console.warn("No se pudo procesar auto-config desde URL:", e);
@@ -53,16 +57,21 @@ if (isSupabaseConfigured(activeConfig)) {
     try {
         if (typeof supabase === 'undefined') {
             console.error("❌ El SDK de Supabase (CDN) no se cargó correctamente. Verifica la conexión a internet.");
+            isRealSupabase = false;
         } else {
-            supabaseClient = supabase.createClient(activeConfig.url, activeConfig.anonKey);
+            // Asegurar que la URL sea válida antes de crear el cliente
+            const validUrl = activeConfig.url.startsWith('http') ? activeConfig.url : `https://${activeConfig.url}`;
+            supabaseClient = supabase.createClient(validUrl, activeConfig.anonKey);
             isRealSupabase = true;
             console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
         }
     } catch (err) {
         console.error("❌ Error inicializando Supabase:", err);
+        isRealSupabase = false;
     }
 } else {
     console.warn("⚠️ Supabase no configurado. El sistema no funcionará correctamente sin una URL y Key válidas.");
+    isRealSupabase = false;
 }
 
 // API UNIFICADA DE ACCESO A DATOS (Solo Supabase)
@@ -305,6 +314,7 @@ const DataService = {
 // Asegurar disponibilidad global explícita para otros scripts (como cliente-app.js)
 window.DataService = DataService;
 if (typeof supabaseClient !== 'undefined') window.supabaseClient = supabaseClient;
+if (typeof supabase !== 'undefined') window.supabase = supabase; // Exportamos la librería base también
 window.isRealSupabase = isRealSupabase;
 window.isSupabaseConfigured = isSupabaseConfigured;
 window.getSupabaseConfig = getSupabaseConfig;

@@ -23,7 +23,16 @@ let state = {
 
 // 1. INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', () => {
-    initApp();
+    // Esperar a que DataService y Supabase estén listos
+    const checkReady = setInterval(() => {
+        if (typeof DataService !== 'undefined') {
+            clearInterval(checkReady);
+            initApp();
+        }
+    }, 50);
+    
+    // Timeout de seguridad por si algo falla
+    setTimeout(() => clearInterval(checkReady), 5000);
 });
 
 async function initApp() {
@@ -75,6 +84,10 @@ function showQRError() {
 
 async function cargarMenu() {
     try {
+        if (!DataService.isReal()) {
+            throw new Error("CONFIG_MISSING");
+        }
+
         const menuData = await DataService.fetchMenu();
         
         if (!menuData || menuData.length === 0) {
@@ -87,13 +100,30 @@ async function cargarMenu() {
         state.menu = menuData;
         renderMenu();
     } catch (e) {
-        console.error("Error cargando menú:", e);
+        console.group("🚨 Error al cargar el sistema (Cliente)");
+        console.error("Tipo de error:", e.message);
+        console.error("Detalles:", e);
+        console.groupEnd();
+        
         const container = document.getElementById('main-content');
+        let errorTitle = "Error de Conexión";
+        let errorDesc = "No se pudo obtener el menú del restaurante. Por favor, verifica tu conexión a internet o contacta al personal.";
+        let icon = "cloud-offline-outline";
+
+        if (e.message === "CONFIG_MISSING") {
+            errorTitle = "Configuración no detectada";
+            errorDesc = "Este sistema requiere una configuración de Supabase. Asegúrate de escanear un código QR válido generado por el personal de caja.";
+            icon = "settings-outline";
+        }
+
         container.innerHTML = `
             <div class="qr-alert" style="border-color: var(--danger);">
-                <ion-icon name="cloud-offline-outline" style="font-size: 3rem; color: var(--danger); margin-bottom: 12px;"></ion-icon>
-                <p><strong>Error de Conexión</strong></p>
-                <p>No se pudo obtener el menú del restaurante. Por favor, verifica tu conexión a internet o contacta al personal.</p>
+                <ion-icon name="${icon}" style="font-size: 3rem; color: var(--danger); margin-bottom: 12px;"></ion-icon>
+                <p><strong>${errorTitle}</strong></p>
+                <p>${errorDesc}</p>
+                <div style="margin-top: 15px; font-size: 0.7rem; color: #94A3B8; background: rgba(0,0,0,0.05); padding: 8px; border-radius: 4px;">
+                    Info técnica: ${e.message || 'Error desconocido'}
+                </div>
                 <button class="confirm-btn" style="margin-top: 20px;" onclick="location.reload()">Reintentar</button>
             </div>
         `;

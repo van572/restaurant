@@ -51,8 +51,9 @@ function mostrarNotificacionFlotante(mensaje) {
     
     contenedor.appendChild(banner);
     
-    // Reproducir un pitido o tono suave que no cause molestias al operador de cocina/caja
-    reproducirTonoAccion();
+    // No reproducimos sonido aquí para evitar duplicados, 
+    // ya que AppNotifications.show() se encarga de ello en las vistas específicas.
+    // reproducirTonoAccion();
 
     // Remover automáticamente tras 4 segundos con una transición visual agradable
     setTimeout(() => {
@@ -76,26 +77,5 @@ function crearContenedorNotificaciones() {
     return div;
 }
 
-// Sonido sutil interactivo basado en Web Audio API (No requiere cargar archivos externos)
-function reproducirTonoAccion() {
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 (Re5)
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5 (La5) - Tono feliz de éxito
-
-        gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
-
-        oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + 0.35);
-    } catch (e) {
-        // Ignorar de forma segura si el navegador restringe la reproducción de audio interactiva sin interacción previa
-    }
-}
+// Fin de lógica de notificaciones
+});
