@@ -133,7 +133,8 @@ const CocinaController = {
         `).join('');
 
         // Calcular minutos de retraso
-        const tiempoCreado = new Date(pedido.creado_en);
+        const timestamp = pedido.creado_en || pedido.created_at || new Date().toISOString();
+        const tiempoCreado = new Date(timestamp);
         const minutosTranscurridos = Math.floor((Date.now() - tiempoCreado) / 60000);
         let colorRetraso = minutosTranscurridos > 15 ? 'retraso-critico' : (minutosTranscurridos > 8 ? 'retraso-medio' : 'retraso-bajo');
 

@@ -48,6 +48,7 @@ async function initApp() {
     console.log("Supabase Connection Status:", conn.message);
     if (!conn.success && DataService.isReal()) {
         console.warn("⚠️ Advertencia: El cliente tiene configurado Supabase pero no hay respuesta del servidor.");
+        alert("Atención: No se pudo conectar con el servidor en la nube. Los pedidos podrían no llegar a la cocina. Verifica tu conexión a internet o la configuración del sistema.");
     }
 
     // Suscribirse a cambios en tiempo real del menú
@@ -263,8 +264,11 @@ async function confirmOrder() {
         total: total
     };
 
+    console.log("Intentando enviar pedido:", pedidoData);
+
     try {
         const response = await DataService.crearPedido(pedidoData);
+        console.log("Respuesta de DataService:", response);
         if (response) {
             showSuccess();
         } else {

@@ -185,12 +185,24 @@ const DataService = {
     async fetchPedidos() {
         if (isRealSupabase) {
             try {
-                const { data, error } = await supabaseClient
-                    .from('pedidos')
-                    .select('*')
-                    .neq('estado', 'pagado')
-                    .order('creado_en', { ascending: true });
-                if (error) throw error;
+                // Intentamos primero con creado_en
+                let query = supabaseClient.from('pedidos').select('*').neq('estado', 'pagado');
+                
+                const { data, error } = await query.order('creado_en', { ascending: true }).catch(() => {
+                    // Si falla por la columna, intentamos por id
+                    return query.order('id', { ascending: true });
+                });
+
+                if (error) {
+                    console.warn("Fallo ordenando por creado_en, intentando por id...");
+                    const { data: data2, error: error2 } = await supabaseClient
+                        .from('pedidos')
+                        .select('*')
+                        .neq('estado', 'pagado')
+                        .order('id', { ascending: true });
+                    if (error2) throw error2;
+                    return data2;
+                }
                 return data;
             } catch (err) {
                 console.error("Error cargando pedidos desde Supabase, reintentando local:", err);
@@ -205,20 +217,49 @@ const DataService = {
     async crearPedido(pedidoCustom) {
         if (isRealSupabase) {
             try {
+                // Solo enviamos los campos fundamentales para maximizar compatibilidad con el esquema
+                const payload = {
+                    mesa: pedidoCustom.mesa,
+                    mesero: pedidoCustom.mesero || "Cliente QR",
+                    items: pedidoCustom.items,
+                    total: parseFloat(pedidoCustom.total),
+                    estado: 'pendiente'
+                };
+
+                console.log("Supabase Insert Payload:", payload);
+
+                // Insertamos. Usamos .select() para intentar obtener el objeto creado (incluyendo ID y Timestamps del servidor)
                 const { data, error } = await supabaseClient
                     .from('pedidos')
-                    .insert([{
-                        mesa: pedidoCustom.mesa,
-                        mesero: pedidoCustom.mesero,
-                        items: pedidoCustom.items,
-                        total: pedidoCustom.total,
-                        estado: 'pendiente'
-                    }])
+                    .insert([payload])
                     .select();
-                if (error) throw error;
+                
+                if (error) {
+                    console.error("Error retornado por Supabase:", error);
+                    // Si el error es por columnas faltantes (creado_en), intentamos loguearlo
+                    throw error;
+                }
+                
+                // Si RLS está activo para SELECT pero no para INSERT, data puede ser null/vacío 
+                // aunque la inserción haya tenido éxito.
+                if (!data || data.length === 0) {
+                    console.warn("La inserción parece exitosa pero no se devolvieron datos (posible RLS). Retornando mock parcial.");
+                    return { ...payload, id: 'temp-' + Date.now(), creado_en: new Date().toISOString() };
+                }
+                
                 return data[0];
             } catch (err) {
-                console.error("Error insertando en Supabase, guardando local:", err);
+                console.error("Fallo crítico en DataService.crearPedido:", err);
+                
+                // Mostrar alerta informativa al usuario para que sepa qué falló exactamente
+                let msg = err.message || "Error desconocido";
+                if (err.code === '42703') msg = "Error de esquema: Falta una columna en la tabla 'pedidos' (posiblemente 'mesa', 'mesero', 'items', 'total' o 'estado')";
+                if (err.code === '42P01') msg = "Error de esquema: La tabla 'pedidos' no existe en Supabase";
+                if (err.code === 'PGRST116') msg = "Error de RLS: No tienes permisos para insertar o leer en la tabla 'pedidos'";
+                
+                alert("⚠️ Error de Supabase: " + msg);
+                
+                // Como último recurso, guardamos localmente para no perder el pedido en esta pestaña
                 return insertLocalPedido(pedidoCustom);
             }
         } else {
