@@ -1,22 +1,32 @@
 package com.example.data
 
+import android.content.Context
 import android.util.Log
 import com.example.BuildConfig
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.example.ui.CategoriaPlatillo
+import com.example.ui.MenuPlatillo
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.PostgresAction.Update
+import io.github.jan.supabase.realtime.PostgresAction.Insert
+import io.github.jan.supabase.realtime.PostgresAction.Delete
+import io.github.jan.supabase.realtime.decodeRecord
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.realtime.channel
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.flow.*
+import kotlinx.serialization.Serializable
 import java.io.IOException
 
 // --------------------------------------------------------------------
 // MODELO DE DATOS EN ESTRICTA RELACIÓN CON EL ESQUEMA POSTGRES
 // --------------------------------------------------------------------
+@Serializable
 data class ItemPedido(
     val producto: String,
     val cantidad: Int,
@@ -24,6 +34,7 @@ data class ItemPedido(
     val notas: String = ""
 )
 
+@Serializable
 data class Pedido(
     val id: Long? = null,
     val mesa: String,
@@ -35,6 +46,7 @@ data class Pedido(
     val actualizado_en: String? = null
 )
 
+@Serializable
 data class PedidoInsert(
     val mesa: String,
     val mesero: String,
@@ -50,21 +62,14 @@ enum class ConnectionType {
 }
 
 class PedidoRepository(
+    private val context: Context,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
     private val TAG = "PedidoRepository"
 
-    private val client = OkHttpClient.Builder()
-        .addInterceptor { chain ->
-            val requestBuilder = chain.request().newBuilder()
-            if (isSupabaseConfigured) {
-                requestBuilder
-                    .addHeader("apikey", supabaseAnonKey)
-                    .addHeader("Authorization", "Bearer $supabaseAnonKey")
-            }
-            chain.proceed(requestBuilder.build())
-        }
-        .build()
+    private val db = AppDatabase.getDatabase(context)
+    private val dao = db.pedidoDao()
+    private val converters = PedidoRoomConverters()
 
     // Configuración obtenida via BuildConfig (.env / AI Studio Secrets)
     private val supabaseUrl = BuildConfig.SUPABASE_URL.trim()
@@ -76,57 +81,16 @@ class PedidoRepository(
                 supabaseAnonKey.isNotEmpty() && 
                 supabaseAnonKey != "YOUR_SUPABASE_ANON_KEY"
 
-    private fun getCleanRestUrl(): String {
-        var base = supabaseUrl.trim()
-        
-        // Limpieza de sufijos comunes si el usuario ingresó la URL de tabla directamente
-        if (base.endsWith("/pedidos")) {
-            base = base.substringBefore("/pedidos")
-        } else if (base.endsWith("/pedidos/")) {
-            base = base.substringBefore("/pedidos/")
+    // Inicialización del SDK oficial de Supabase
+    private val supabase: SupabaseClient? = if (isSupabaseConfigured) {
+        createSupabaseClient(
+            supabaseUrl = supabaseUrl,
+            supabaseKey = supabaseAnonKey
+        ) {
+            install(Postgrest)
+            install(Realtime)
         }
-
-        if (base.endsWith("/rest/v1")) {
-            base = base.substringBefore("/rest/v1")
-        } else if (base.endsWith("/rest/v1/")) {
-            base = base.substringBefore("/rest/v1/")
-        }
-
-        if (!base.endsWith("/")) {
-            base = "$base/"
-        }
-        
-        return "${base}rest/v1/"
-    }
-
-    private fun getCleanWsUrl(): String {
-        try {
-            var base = supabaseUrl.trim()
-            if (base.endsWith("/pedidos")) {
-                base = base.substringBefore("/pedidos")
-            } else if (base.endsWith("/pedidos/")) {
-                base = base.substringBefore("/pedidos/")
-            }
-            if (base.endsWith("/rest/v1")) {
-                base = base.substringBefore("/rest/v1")
-            } else if (base.endsWith("/rest/v1/")) {
-                base = base.substringBefore("/rest/v1/")
-            }
-
-            val uri = java.net.URI(base)
-            val host = uri.host ?: base
-                .replace("https://", "")
-                .replace("http://", "")
-                .split("/")[0]
-            return "wss://$host/realtime/v1/websocket?apikey=$supabaseAnonKey&vsn=1.0.0"
-        } catch (e: Exception) {
-            val rawHost = supabaseUrl
-                .replace("https://", "")
-                .replace("http://", "")
-                .split("/")[0]
-            return "wss://$rawHost/realtime/v1/websocket?apikey=$supabaseAnonKey&vsn=1.0.0"
-        }
-    }
+    } else null
 
     // Estado reactivo expuesto a la UI
     private val _pedidos = MutableStateFlow<List<Pedido>>(emptyList())
@@ -138,133 +102,205 @@ class PedidoRepository(
     private val _isConnectingWS = MutableStateFlow(false)
     val isConnectingWS: StateFlow<Boolean> = _isConnectingWS.asStateFlow()
 
-    // Integración de Moshi para serializar/deserializar de forma estricta y limpia
-    private val moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
-
-    private val listType = Types.newParameterizedType(List::class.java, Pedido::class.java)
-    private val listAdapter = moshi.adapter<List<Pedido>>(listType)
-    private val singleAdapter = moshi.adapter(Pedido::class.java)
-    private val insertAdapter = moshi.adapter(PedidoInsert::class.java)
-
-    // Almacenamiento local mock en memoria
-    private val mockPedidos = mutableListOf<Pedido>()
-    private var mockIdCounter = 100L
-
-    private var ws: WebSocket? = null
-    private var heartbeatJob: Job? = null
+    private var realtimeJob: Job? = null
+    private var isWebSocketConnected = false
 
     init {
-        // Inicializar datos simulados de demostración si arranca en modo local
-        if (!isSupabaseConfigured) {
-            Log.i(TAG, "Arrancando en modo DEMO local (Supabase no configurado en credenciales).")
+        // Cargar pedidos guardados en Room para garantizar visualización offline inmediata
+        scope.launch {
+            cargarPedidosDesdeRoom()
+        }
+
+        if (supabase == null) {
+            Log.i(TAG, "Arrancando en modo DEMO local (Supabase no configurado).")
             _connectionState.value = ConnectionType.MOCK_DEMO
-            inicializarMockData()
+            scope.launch {
+                val existing = dao.getAllPedidos()
+                if (existing.isEmpty()) {
+                    inicializarMockDataEnRoom()
+                } else {
+                    cargarPedidosDesdeRoom()
+                }
+            }
         } else {
-            Log.i(TAG, "Supabase detectado de forma válida. Sincronizando en la Nube mediante Polling continuo.")
+            Log.i(TAG, "Supabase detectado. Inicializando conexión Realtime SDK.")
             _connectionState.value = ConnectionType.NUBE
+            inicializarSuscripcionRealtime()
             refreshPedidos()
         }
-
-        // Polling constante y automático de pedidos cada 3-4 segundos para sincronizar Mesero y Cocina de forma segura
-        iniciarPollingDePedidos()
     }
 
-    // --- ACCIÓN: ACTUALIZAR PEDIDOS (GET /REST/V1/PEDIDOS) ---
-    fun refreshPedidos() {
-        if (!isSupabaseConfigured) {
-            _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
-            return
-        }
+    // --- CARGAR PEDIDOS DESDE ROOM HACIA STATEFLOW ---
+    private suspend fun cargarPedidosDesdeRoom() {
+        val entities = dao.getAllPedidos()
+        val mapped = entities.map { it.toPedido(converters) }
+        _pedidos.value = mapped.filter { it.estado != "pagado" }
+    }
 
-        scope.launch {
+    // --- CONEXIÓN REALTIME CON EL SDK OFICIAL ---
+    private fun inicializarSuscripcionRealtime() {
+        val client = supabase ?: return
+        realtimeJob?.cancel()
+        
+        realtimeJob = scope.launch {
             try {
                 _isConnectingWS.value = true
-                // Filtrar para no traer pedidos ya pagados/liquidados por la caja
-                val cleanUrl = getCleanRestUrl()
-                val requestUrl = "${cleanUrl}pedidos?estado=neq.pagado&select=*&order=creado_en.asc"
+                Log.i(TAG, "Conectando al canal Realtime de Supabase...")
                 
-                val request = Request.Builder()
-                    .url(requestUrl)
-                    .get()
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    _isConnectingWS.value = false
-                    if (!response.isSuccessful) throw IOException("Error http: ${response.code}")
-                    val bodyString = response.body?.string() ?: ""
-                    val result = listAdapter.fromJson(bodyString)
-                    _pedidos.value = result ?: emptyList()
-                    Log.d(TAG, "Pedidos actualizados exitosamente de Supabase. Total: ${_pedidos.value.size}")
-                }
-            } catch (e: Exception) {
+                val channel = client.realtime.channel("pedidos_channel")
+                
+                val changeFlow = channel.postgresChangeFlow<PostgresAction>(schema = "public")
+                
                 _isConnectingWS.value = false
-                Log.e(TAG, "Error refrescando pedidos en la nube, usando fallback mock local", e)
-                // Fallback temporal si la conexión falla a mitad del servicio
-                _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
+                isWebSocketConnected = true
+                Log.i(TAG, "Suscripción Realtime activa para la tabla 'pedidos'.")
+
+                channel.subscribe()
+
+                changeFlow.onEach { action ->
+                    Log.d(TAG, "Cambio Realtime detectado: $action")
+                    
+                    when (action) {
+                        is Update -> {
+                            val updatedPedido = action.decodeRecord<Pedido>()
+                            Log.i(TAG, "Pedido #${updatedPedido.id} actualizado a '${updatedPedido.estado}'")
+                            
+                            // Notificación instantánea si el estado cambia a 'listo'
+                            if (updatedPedido.estado == "listo") {
+                                enviarNotificacionPedidoListo(updatedPedido)
+                            }
+                            refreshPedidos()
+                        }
+                        is Insert -> {
+                            Log.i(TAG, "Nuevo pedido insertado en base de datos.")
+                            refreshPedidos()
+                        }
+                        is Delete -> {
+                            Log.i(TAG, "Pedido eliminado de la base de datos.")
+                            refreshPedidos()
+                        }
+                        else -> refreshPedidos()
+                    }
+                }.collect()
+                
+            } catch (e: Exception) {
+                isWebSocketConnected = false
+                _isConnectingWS.value = false
+                Log.e(TAG, "Error en la suscripción Realtime: ${e.message}")
+                delay(5000)
+                inicializarSuscripcionRealtime()
             }
         }
     }
 
-    // --- ACCIÓN: CREAR UN NUEVO PEDIDO (POST /REST/V1/PEDIDOS) ---
-    fun crearPedido(pedido: Pedido, onResult: (Boolean, String?) -> Unit) {
-        if (!isSupabaseConfigured) {
-            // Operar simulador local
-            val nuevoId = mockIdCounter++
-            val nuevoPedido = pedido.copy(
-                id = nuevoId,
-                creado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date()),
-                actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-            )
-            mockPedidos.add(nuevoPedido)
-            _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
-            onResult(true, "Pedido simulado creado localmente (Mesa: ${pedido.mesa})")
-
-            // Simular flujo automático en la cocina (KDS) para pruebas dinámicas en tiempo real
+    // --- ACCIÓN: ACTUALIZAR PEDIDOS DESDE LA WEB ---
+    fun refreshPedidos() {
+        val client = supabase
+        if (client == null) {
             scope.launch {
-                // 1. Pasa a 'cocinando' después de 8 segundos
-                delay(8000)
-                val idx1 = mockPedidos.indexOfFirst { it.id == nuevoId }
-                if (idx1 != -1 && mockPedidos[idx1].estado == "pendiente") {
-                    mockPedidos[idx1] = mockPedidos[idx1].copy(
-                        estado = "cocinando",
-                        actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-                    )
-                    _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
-                }
-
-                // 2. Pasa a 'listo' después de 12 segundos más
-                delay(12000)
-                val idx2 = mockPedidos.indexOfFirst { it.id == nuevoId }
-                if (idx2 != -1 && mockPedidos[idx2].estado == "cocinando") {
-                    mockPedidos[idx2] = mockPedidos[idx2].copy(
-                        estado = "listo",
-                        actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-                    )
-                    _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
-                }
-
-                // 3. Pasa a 'entregado' después de 10 segundos más
-                delay(10000)
-                val idx3 = mockPedidos.indexOfFirst { it.id == nuevoId }
-                if (idx3 != -1 && mockPedidos[idx3].estado == "listo") {
-                    mockPedidos[idx3] = mockPedidos[idx3].copy(
-                        estado = "entregado",
-                        actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-                    )
-                    _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
-                }
+                cargarPedidosDesdeRoom()
             }
             return
         }
 
         scope.launch {
             try {
-                val cleanUrl = getCleanRestUrl()
-                val requestUrl = "${cleanUrl}pedidos"
+                Log.d(TAG, "Refrescando pedidos desde Supabase via SDK...")
+                // Filtrar para no traer pedidos ya pagados
+                val result = client.postgrest.from("pedidos")
+                    .select {
+                        filter {
+                            neq("estado", "pagado")
+                        }
+                    }
+                    .decodeList<Pedido>()
+                
+                // Sincronizar en caliente hacia Room local para disponibilidad offline inmediata
+                val entities = result.map { PedidoEntity.fromPedido(it, it.id ?: System.currentTimeMillis(), converters) }
+                dao.insertPedidos(entities)
+                
+                // Leer de la base de datos local unificada
+                cargarPedidosDesdeRoom()
+                Log.d(TAG, "Pedidos actualizados exitosamente en Room desde Supabase Nube. Total: ${result.size}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refrescando pedidos en la nube, usando fallback offline de Room", e)
+                cargarPedidosDesdeRoom()
+            }
+        }
+    }
 
-                // Map into PedidoInsert to strip id, creado_en, and actualizado_en fields
+    // --- CARGAR EL MENÚ DYNAMIC DE SUPABASE ---
+    fun fetchDynamicMenu(onResult: (List<MenuPlatillo>?) -> Unit) {
+        val client = supabase
+        if (client == null) {
+            onResult(null)
+            return
+        }
+        scope.launch {
+            try {
+                val result = client.postgrest.from("menu").select().decodeList<MenuPlatillo>()
+                withContext(Dispatchers.Main) {
+                    onResult(result)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error recuperando el menú dinámico", e)
+                withContext(Dispatchers.Main) {
+                    onResult(null)
+                }
+            }
+        }
+    }
+
+    // --- NOTIFICACIÓN AL MESERO ---
+    private fun enviarNotificacionPedidoListo(pedido: Pedido) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channelId = "pedidos_listos_channel"
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "Pedidos Listos",
+                android.app.NotificationManager.IMPORTANCE_HIGH
+            )
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("¡Pedido Listo!")
+            .setContentText("El pedido de la ${pedido.mesa} está listo para ser servido.")
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+
+        notificationManager.notify(pedido.id?.toInt() ?: 0, builder.build())
+        Log.i(TAG, "Notificación enviada para pedido ${pedido.id}")
+    }
+
+    // --- ACCIÓN: CREAR UN NUEVO PEDIDO ---
+    fun crearPedido(pedido: Pedido, onResult: (Boolean, String?) -> Unit) {
+        val client = supabase
+        if (client == null) {
+            scope.launch {
+                val nuevoId = System.currentTimeMillis()
+                val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
+                val nuevoPedido = pedido.copy(id = nuevoId, creado_en = timestamp, actualizado_en = timestamp)
+                
+                // Guardar localmente en Room
+                dao.insertPedido(PedidoEntity.fromPedido(nuevoPedido, nuevoId, converters))
+                cargarPedidosDesdeRoom()
+                
+                withContext(Dispatchers.Main) {
+                    onResult(true, "Pedido simulado guardado de manera local (Mesa: ${pedido.mesa})")
+                }
+
+                // Generar ciclo de simulación offline para pruebas en la cocina
+                generarSimulacionCocinaOffline(nuevoId)
+            }
+            return
+        }
+
+        scope.launch {
+            try {
                 val insertModel = PedidoInsert(
                     mesa = pedido.mesa,
                     mesero = pedido.mesero,
@@ -272,92 +308,62 @@ class PedidoRepository(
                     total = pedido.total,
                     estado = pedido.estado
                 )
-                val jsonStr = insertAdapter.toJson(insertModel)
-                val mediaType = "application/json; charset=utf-8".toMediaType()
-                val reqBody = jsonStr.toRequestBody(mediaType)
-
-                val request = Request.Builder()
-                    .url(requestUrl)
-                    .post(reqBody)
-                    .addHeader("Prefer", "return=representation")
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        Log.i(TAG, "Pedido creado con éxito en Supabase Nube.")
-                        withContext(Dispatchers.Main) {
-                            onResult(true, "Pedido enviado a cocina.")
-                        }
-                        refreshPedidos()
-                    } else {
-                        val bodyErr = response.body?.string() ?: ""
-                        Log.e(TAG, "Error insertando pedido en Supabase: $bodyErr")
-                        val customMessage = if (response.code == 404) {
-                            "Error 404: La tabla 'pedidos' no existe en tu base de datos de Supabase. \n\nAsegúrate de ingresar a tu consola de Supabase, abrir el 'SQL Editor' y copiar y ejecutar el archivo 'database/esquema.sql' para crear la tabla 'pedidos'."
-                        } else {
-                            "Error de servicio: ${response.code}\n$bodyErr"
-                        }
-                        withContext(Dispatchers.Main) {
-                            onResult(false, customMessage)
-                        }
-                    }
+                
+                client.postgrest.from("pedidos").insert(insertModel)
+                
+                Log.i(TAG, "Pedido creado con éxito en Supabase Nube.")
+                withContext(Dispatchers.Main) {
+                    onResult(true, "Pedido enviado a cocina.")
                 }
+                refreshPedidos()
             } catch (e: Exception) {
                 Log.e(TAG, "Excepción creando pedido en Supabase", e)
                 withContext(Dispatchers.Main) {
-                    onResult(false, "Error de red: ${e.message}")
+                    onResult(false, "Error de servicio: ${e.message}")
                 }
             }
         }
     }
 
-    // --- ACCIÓN: ACTUALIZAR ESTADO DE UN PEDIDO (PATCH /REST/V1/PEDIDOS) ---
+    // --- ACCIÓN: ACTUALIZAR ESTADO DE UN PEDIDO ---
     fun actualizarEstadoPedido(pedidoId: Long, nuevoEstado: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
-        if (!isSupabaseConfigured) {
-            val idx = mockPedidos.indexOfFirst { it.id == pedidoId }
-            if (idx != -1) {
-                mockPedidos[idx] = mockPedidos[idx].copy(
+        scope.launch {
+            // Siempre actualizar la base local de Room primero
+            val localPed = dao.getAllPedidos().find { it.id == pedidoId }
+            if (localPed != null) {
+                val updatedLocal = localPed.copy(
                     estado = nuevoEstado,
                     actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
                 )
-                _pedidos.value = mockPedidos.filter { it.estado != "pagado" }
-                onResult(true, "Estado simulado de pedido #$pedidoId actualizado a '$nuevoEstado'")
-            } else {
-                onResult(false, "Pedido no encontrado")
+                dao.insertPedido(updatedLocal)
+                cargarPedidosDesdeRoom()
+                
+                // NOTIFICACIÓN SI PASA A LISTO
+                if (nuevoEstado == "listo") {
+                    enviarNotificacionPedidoListo(updatedLocal.toPedido(converters))
+                }
             }
-            return
-        }
 
-        scope.launch {
+            val client = supabase
+            if (client == null) {
+                withContext(Dispatchers.Main) {
+                    onResult(true, "Estado de pedido #$pedidoId actualizado a '$nuevoEstado' offline.")
+                }
+                return@launch
+            }
+
             try {
-                val cleanUrl = getCleanRestUrl()
-                val requestUrl = "${cleanUrl}pedidos?id=eq.$pedidoId"
-
-                // Crear el body JSON para PATCH: {"estado": "cocinando"}
-                val jsonStr = "{\"estado\": \"$nuevoEstado\"}"
-                val mediaType = "application/json; charset=utf-8".toMediaType()
-                val reqBody = jsonStr.toRequestBody(mediaType)
-
-                val request = Request.Builder()
-                    .url(requestUrl)
-                    .patch(reqBody)
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        Log.i(TAG, "Estado de pedido #$pedidoId actualizado a '$nuevoEstado' con éxito.")
-                        withContext(Dispatchers.Main) {
-                            onResult(true, "Pedido actualizado a $nuevoEstado.")
-                        }
-                        refreshPedidos()
-                    } else {
-                        val bodyErr = response.body?.string() ?: ""
-                        Log.e(TAG, "Error actualizando pedido en Supabase: $bodyErr")
-                        withContext(Dispatchers.Main) {
-                            onResult(false, "Error de servicio: ${response.code}")
-                        }
+                client.postgrest.from("pedidos").update(mapOf("estado" to nuevoEstado)) {
+                    filter {
+                        eq("id", pedidoId)
                     }
                 }
+                
+                Log.i(TAG, "Estado de pedido #$pedidoId actualizado a '$nuevoEstado' en Supabase.")
+                withContext(Dispatchers.Main) {
+                    onResult(true, "Pedido actualizado a $nuevoEstado.")
+                }
+                refreshPedidos()
             } catch (e: Exception) {
                 Log.e(TAG, "Excepción actualizando pedido en Supabase", e)
                 withContext(Dispatchers.Main) {
@@ -367,38 +373,47 @@ class PedidoRepository(
         }
     }
 
-    // --- ENLACE: POLING AUTOMÁTICO EN SEGUNDO PLANO PARA ESCUCHAR CAMBIOS ---
-    private var pollingJob: Job? = null
+    fun cerrarSocket() {
+        Log.i(TAG, "Cerrando Realtime SDK y liberando tareas en segundo plano.")
+        realtimeJob?.cancel()
+    }
 
-    fun iniciarPollingDePedidos() {
-        pollingJob?.cancel()
-        pollingJob = scope.launch {
-            while (isActive) {
-                try {
-                    // Solo consultamos si está configurado para la nube, o forzamos sincronía local
-                    refreshPedidos()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error en bucle de polling de pedidos", e)
+    private fun generarSimulacionCocinaOffline(nuevoId: Long) {
+        scope.launch {
+            // Pasa a 'cocinando' en 8s
+            delay(8000)
+            dao.getAllPedidos().find { it.id == nuevoId }?.let { ped ->
+                if (ped.estado == "pendiente") {
+                    dao.insertPedido(ped.copy(estado = "cocinando"))
+                    cargarPedidosDesdeRoom()
                 }
-                delay(3000) // Encuesta rápida cada 3 segundos
+            }
+
+            // Pasa a 'listo' en 12s
+            delay(12000)
+            dao.getAllPedidos().find { it.id == nuevoId }?.let { ped ->
+                if (ped.estado == "cocinando") {
+                    dao.insertPedido(ped.copy(estado = "listo"))
+                    cargarPedidosDesdeRoom()
+                }
+            }
+
+            // Pasa a 'entregado' en 10s
+            delay(10000)
+            dao.getAllPedidos().find { it.id == nuevoId }?.let { ped ->
+                if (ped.estado == "listo") {
+                    dao.insertPedido(ped.copy(estado = "entregado"))
+                    cargarPedidosDesdeRoom()
+                }
             }
         }
     }
 
-    fun detenerPolling() {
-        pollingJob?.cancel()
-        pollingJob = null
-    }
-
-    fun cerrarSocket() {
-        Log.i(TAG, "Cerrando recursos y cancelando polling periódico de pedidos.")
-        detenerPolling()
-    }
-
-    // --- FUNCIONES INTERNAS DE CARGA LOCAL (MOCK DATA FOR TESTING) ---
-    private fun inicializarMockData() {
-        mockPedidos.add(
-            Pedido(
+    private fun inicializarMockDataEnRoom() {
+        scope.launch {
+            val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
+            
+            val mock1 = Pedido(
                 id = 1L,
                 mesa = "Mesa 3",
                 mesero = "Carlos Gómez",
@@ -409,12 +424,11 @@ class PedidoRepository(
                 ),
                 total = 31.50,
                 estado = "pendiente",
-                creado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date() - Int.MAX_VALUE),
-                actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date() - Int.MAX_VALUE)
+                creado_en = dateStr,
+                actualizado_en = dateStr
             )
-        )
-        mockPedidos.add(
-            Pedido(
+
+            val mock2 = Pedido(
                 id = 2L,
                 mesa = "Mesa 7",
                 mesero = "María Rojas",
@@ -424,15 +438,13 @@ class PedidoRepository(
                 ),
                 total = 18.00,
                 estado = "cocinando",
-                creado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date()),
-                actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
+                creado_en = dateStr,
+                actualizado_en = dateStr
             )
-        )
-        _pedidos.value = mockPedidos
-    }
 
-    // Extensión simple para restar fechas simuladas
-    private operator fun java.util.Date.minus(days: Int): java.util.Date {
-        return java.util.Date(this.time - days * 1000L)
+            dao.insertPedido(PedidoEntity.fromPedido(mock1, 1L, converters))
+            dao.insertPedido(PedidoEntity.fromPedido(mock2, 2L, converters))
+            cargarPedidosDesdeRoom()
+        }
     }
 }

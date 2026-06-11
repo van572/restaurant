@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Menú Digital - Restaurante</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #FF5C00;
+            --primary-dark: #E65300;
+            --bg: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text-main: #1A1C1E;
+            --text-muted: #6C757D;
+            --border: #E9ECEF;
+            --success: #28A745;
+            --shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background-color: var(--card-bg);
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .mesa-badge {
+            background-color: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .container {
+            padding: 16px;
+            padding-bottom: 120px; /* Espacio para el carrito flotante */
+        }
+
+        .categoria-section {
+            margin-bottom: 24px;
+        }
+
+        .categoria-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .platillo-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            gap: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.2s;
+        }
+
+        .platillo-card:active {
+            transform: scale(0.98);
+        }
+
+        .platillo-emoji {
+            font-size: 2.5rem;
+            background: var(--bg);
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+        }
+
+        .platillo-info {
+            flex: 1;
+        }
+
+        .platillo-name {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .platillo-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .platillo-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .platillo-price {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .add-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(255, 92, 0, 0.3);
+        }
+
+        /* BARRA INFERIOR CARRITO */
+        .cart-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 16px;
+            right: 16px;
+            background: var(--text-main);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 200;
+            display: none; /* Se oculta si no hay items */
+            animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .cart-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cart-count {
+            background: var(--primary);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .cart-total {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .view-cart-btn {
+            background: transparent;
+            color: white;
+            border: none;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        /* MODAL CARRITO */
+        #cart-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 300;
+            display: none;
+            align-items: flex-end;
+        }
+
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-height: 85vh;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .close-modal {
+            font-size: 1.8rem;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .item-qty-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg);
+            padding: 4px;
+            border-radius: 12px;
+        }
+
+        .qty-btn {
+            background: white;
+            border: 1px solid var(--border);
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .item-price {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .item-subtotal {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .item-notes {
+            margin-top: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            font-family: inherit;
+        }
+
+        .confirm-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-top: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255,92,0,0.3);
+        }
+
+        /* ESTADOS DE CARGA / ERROR */
+        .loading-view, .error-view, .success-view {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* QR ALERT */
+        .qr-alert {
+            background: #FFF3CD;
+            color: #856404;
+            padding: 16px;
+            border-radius: 12px;
+            margin: 20px;
+            border: 1px solid #FFEEBA;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <header class="header">
+            <div>
+                <h1>La Cocina Real</h1>
+            </div>
+            <div id="mesa-indicator" class="mesa-badge">Cargando mesa...</div>
+        </header>
+
+        <div id="main-content" class="container">
+            <!-- Los productos se cargarán dinámicamente aquí -->
+            <div class="loading-view">
+                <div class="loading-spinner"></div>
+                <p>Cargando menú delicioso...</p>
+            </div>
+        </div>
+
+        <!-- Barra de Carrito Flotante -->
+        <div id="cart-bar" class="cart-bar">
+            <div class="cart-info">
+                <div class="cart-count">0</div>
+                <div class="cart-total">$0.00</div>
+            </div>
+            <button class="view-cart-btn" onclick="openCart()">
+                Ver pedido
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Carrito -->
+    <div id="cart-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Tu Pedido</h2>
+                <ion-icon name="close-outline" class="close-modal" onclick="closeCart()"></ion-icon>
+            </div>
+            
+            <div id="cart-items-list">
+                <!-- Items del carrito -->
+            </div>
+
+            <div style="margin-top: 20px; padding: 16px; background: var(--bg); border-radius: 16px;">
+                <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.2rem;">
+                    <span>Total</span>
+                    <span id="modal-total" style="color: var(--primary);">$0.00</span>
+                </div>
+            </div>
+
+            <button id="send-order-btn" class="confirm-btn" onclick="confirmOrder()">
+                Enviar pedido a cocina
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="assets/js/supabase-client.js"></script>
+    <script src="assets/js/cliente-app.js"></script>
+</body>
+</html>

@@ -9,6 +9,9 @@ lifecycleViewmodelCompose = "2.8.7"
 lifecycleRuntimeCompose = "2.8.7"
 activityCompose = "1.10.1"
 kotlin = "2.2.10"
+supabase = "3.1.2"
+ktor = "3.0.3"
+kotlinxSerializationJson = "1.8.0"
 composeBom = "2024.09.00"
 googleDevtoolsKsp = "2.3.5"
 navigationCompose = "2.8.9"
@@ -87,10 +90,16 @@ roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi
 roborazzi-junit-rule = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt" }
+ktor-client-android = { group = "io.ktor", name = "ktor-client-android", version.ref = "ktor" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 google-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "googleDevtoolsKsp" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 secrets = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }

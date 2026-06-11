@@ -4,7 +4,7 @@
 // ----------------------------------------------------
 // 1. CONFIGURACIÓN COMPARTIDA Y MENÚ
 // ----------------------------------------------------
-const MENU_RESTAURANTE = {
+const MENU_RESTAURANTE_DEFAULT = {
     "Hamburguesa Premium": 12.50,
     "Pizza Personal Pepperoni": 15.00,
     "Tacos de Res (x3)": 8.50,
@@ -14,6 +14,22 @@ const MENU_RESTAURANTE = {
     "Refresco Sabor Cola": 2.50,
     "Agua Mineral": 2.00
 };
+
+let MENU_RESTAURANTE = {};
+
+function initMenuFromStorage() {
+    const raw = localStorage.getItem('custom_menu_restaurante');
+    if (raw) {
+        try {
+            MENU_RESTAURANTE = JSON.parse(raw);
+        } catch(e) {
+            MENU_RESTAURANTE = { ...MENU_RESTAURANTE_DEFAULT };
+        }
+    } else {
+        MENU_RESTAURANTE = { ...MENU_RESTAURANTE_DEFAULT };
+    }
+}
+initMenuFromStorage();
 
 // Formateador de moneda para homogeneizar pesos/dólares
 const formatCurrency = (monto) => {
@@ -688,3 +704,304 @@ window.SettingsModal = SettingsModal;
 window.CocinaController = CocinaController;
 window.CajaController = CajaController;
 window.AuditoriaController = AuditoriaController;
+
+// ----------------------------------------------------
+// 5. CONTROLADOR DE SESIÓN DE OPERADOR / MESERO (LOCALSTORAGE)
+// ----------------------------------------------------
+const WaiterSession = {
+    getKey() {
+        return 'mesero_nombre';
+    },
+
+    getNombre() {
+        return localStorage.getItem(this.getKey()) || '';
+    },
+
+    setNombre(nombre) {
+        localStorage.setItem(this.getKey(), nombre.trim());
+        this.actualizarUI();
+    },
+
+    init() {
+        console.log("🤵 Sesión: Verificando identidad de operador...");
+        const actual = this.getNombre();
+
+        // Inyectar visualización de nombre en el navbar/header de las vistas
+        this.actualizarUI();
+
+        if (!actual) {
+            this.abrirPrompt();
+        }
+    },
+
+    actualizarUI() {
+        const nombre = this.getNombre();
+        
+        // Agregar un indicador visual elegante en el panel derecho del navbar
+        const paneles = document.querySelectorAll('.right-control-panel');
+        paneles.forEach(panel => {
+            let badge = panel.querySelector('#operador-visual-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.id = 'operador-visual-badge';
+                badge.style.display = 'flex';
+                badge.style.alignItems = 'center';
+                badge.style.gap = '6px';
+                badge.style.fontSize = '0.85rem';
+                badge.style.backgroundColor = 'rgba(241, 245, 249, 0.08)';
+                badge.style.padding = '4px 10px';
+                badge.style.borderRadius = '20px';
+                badge.style.border = '1px solid var(--color-border)';
+                badge.style.marginRight = '8px';
+                badge.style.color = 'var(--color-primary, #E2E8F0)';
+                badge.style.cursor = 'pointer';
+                badge.onclick = () => this.abrirPromptEditable();
+                panel.insertBefore(badge, panel.firstChild);
+            }
+            badge.innerHTML = `👤 <span style="font-weight: 700;">${nombre || 'Configurar Nombre'}</span>`;
+        });
+    },
+
+    abrirPrompt() {
+        let el = document.getElementById('welcome-operator-modal');
+        if (!el) {
+            el = this.crearWelcomeModalDom(false); // No descartable la primera vez
+        }
+        el.style.display = 'flex';
+    },
+
+    abrirPromptEditable() {
+        let el = document.getElementById('welcome-operator-modal');
+        if (el) el.remove();
+        el = this.crearWelcomeModalDom(true); // Descartable desde el perfil
+        el.style.display = 'flex';
+        document.getElementById('welcome-operator-input').value = this.getNombre();
+    },
+
+    cerrar() {
+        const el = document.getElementById('welcome-operator-modal');
+        if (el) el.style.display = 'none';
+    },
+
+    guardar() {
+        const input = document.getElementById('welcome-operator-input');
+        if (!input) return;
+        const nombreVal = input.value.trim();
+        if (!nombreVal) {
+            alert("Por favor, ingresa tu nombre de operador para continuar.");
+            return;
+        }
+        this.setNombre(nombreVal);
+        this.cerrar();
+    },
+
+    crearWelcomeModalDom(descartable) {
+        const modal = document.createElement('div');
+        modal.id = 'welcome-operator-modal';
+        modal.className = 'supabase-config-modal-overlay';
+        
+        // Si no es descartable, evitamos clicks de escape accidental
+        if (!descartable) {
+            modal.style.pointerEvents = 'auto';
+        }
+
+        modal.innerHTML = `
+            <div class="supabase-config-modal-card">
+                <div class="modal-card-header" style="justify-content: center; text-align: center; flex-direction: column; gap: 8px; padding-top: 1.5rem; border-bottom: none;">
+                    <div style="font-size: 3rem; margin-bottom: 0.5rem;">👋</div>
+                    <h3 style="font-size: 1.25rem;">¡Bienvenido a RestFlow Web!</h3>
+                </div>
+                <div class="modal-card-body" style="text-align: center; padding: 1.5rem;">
+                    <p style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.4; margin-bottom: 1.5rem;">
+                        Por favor, escribe tu nombre o rol de operador para personalizar y registrar de forma correcta tus actividades de mesa, cocina y caja.
+                    </p>
+                    <div class="form-group-modal" style="text-align: left;">
+                        <label for="welcome-operator-input" style="letter-spacing: 0.05em; font-size: 0.75rem; font-weight: 700; color: var(--color-primary); display: block; margin-bottom: 0.5rem;">TU NOMBRE O ROL</label>
+                        <input type="text" id="welcome-operator-input" placeholder="Ej: Cajero Carlos, Chef Julia" style="padding: 10px; border-radius: 6px; background-color: var(--color-bg-surface); color: var(--color-text-main); border: 2px solid var(--color-border); font-size: 0.95rem; font-family: inherit; width: 100%; box-sizing: border-box;" />
+                    </div>
+                </div>
+                <div class="modal-card-footer" style="${!descartable ? 'justify-content: center;' : ''}">
+                    ${descartable ? '<button class="btn-modal-action btn-secondary-modal" onclick="WaiterSession.cerrar()">Cancelar</button>' : ''}
+                    <button class="btn-modal-action btn-success-modal" onclick="WaiterSession.guardar()" style="${!descartable ? 'width: 100%;' : ''}">Comenzar Ahora</button>
+                </div>
+            </div>
+        `;
+
+        // Soporte de tecla Enter en el input
+        const input = modal.querySelector('#welcome-operator-input');
+        if (input) {
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    this.guardar();
+                }
+            };
+        }
+
+        document.body.appendChild(modal);
+        return modal;
+    }
+};
+
+window.WaiterSession = WaiterSession;
+
+// ----------------------------------------------------
+// 6. CONTROLADOR DE EDICIÓN DEL MENÚ (LOCALSTORAGE)
+// ----------------------------------------------------
+const MenuEditor = {
+    abrirModal() {
+        let el = document.getElementById('menu-editor-modal');
+        if (el) el.remove();
+        el = this.crearModalDom();
+        el.style.display = 'flex';
+        this.renderList();
+    },
+
+    cerrar() {
+        const el = document.getElementById('menu-editor-modal');
+        if (el) el.style.display = 'none';
+    },
+
+    crearModalDom() {
+        const modal = document.createElement('div');
+        modal.id = 'menu-editor-modal';
+        modal.className = 'supabase-config-modal-overlay';
+        modal.style.display = 'none';
+
+        modal.innerHTML = `
+            <div class="supabase-config-modal-card" style="max-width: 500px; width: 90%;">
+                <div class="modal-card-header" style="padding-top: 1.25rem;">
+                    <h3 style="font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">📋 Configuración del Menú</h3>
+                    <button class="close-modal-btn" onclick="MenuEditor.cerrar()" style="background:none; border:none; cursor:pointer; font-size:1.25rem; color:var(--color-text-muted);">✕</button>
+                </div>
+                <div class="modal-card-body" style="padding: 1.25rem;">
+                    <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1rem; line-height: 1.4;">
+                        Agrega nuevos platillos, modifica precios de los asignados, o vacía el menú por completo para redactarlo de cero según corresponda.
+                    </p>
+                    
+                    <!-- Botones de Acción Global -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; justify-content: flex-end;">
+                        <button class="btn-modal-action" onclick="MenuEditor.vaciarMenu()" style="background-color: var(--color-danger, #EF4444); color: white; font-size: 0.75rem; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; border: none;">🗑️ Quitar Todo</button>
+                        <button class="btn-modal-action" onclick="MenuEditor.restablecerMenu()" style="background-color: #4F378B; color: white; font-size: 0.75rem; padding: 4px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; border: none;">🔄 Restablecer</button>
+                    </div>
+
+                    <!-- Lista de Platillos Activos -->
+                    <div id="editor-active-items" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.5rem; max-height: 180px; overflow-y: auto; background-color: var(--color-bg-depth); padding: 8px; border-radius: 6px; border: 1px solid var(--color-border);">
+                        <!-- Render interactivo de platillos aquí -->
+                    </div>
+
+                    <!-- Formulario de Nuevo Platillo -->
+                    <fieldset style="border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; background-color: rgba(255,255,255,0.02)">
+                        <legend style="font-size: 0.75rem; font-weight: bold; color: var(--color-primary); padding: 0 6px;">🆕 AGREGAR PLATILLO</legend>
+                        <div style="display: flex; gap: 8px; align-items: flex-end; width:100%; box-sizing:border-box;">
+                            <div style="flex: 2;">
+                                <label style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 4px;">Nombre del Plato</label>
+                                <input id="new-item-name" type="text" placeholder="Ej: Pizza Hawayana" style="width: 100%; padding: 8px; border-radius: 4px; background-color: var(--color-bg-surface); color: var(--color-text-main); border: 1px solid var(--color-border); font-size: 0.85rem;" />
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.7rem; font-weight: bold; display: block; margin-bottom: 4px;">Precio ($)</label>
+                                <input id="new-item-price" type="number" step="0.01" placeholder="Ej: 9.50" style="width: 100%; padding: 8px; border-radius: 4px; background-color: var(--color-bg-surface); color: var(--color-text-main); border: 1px solid var(--color-border); font-size: 0.85rem;" />
+                            </div>
+                            <button onclick="MenuEditor.agregarItem()" style="background-color: var(--color-primary); color: #1E293B; border: none; border-radius: 4px; padding: 8px 14px; font-size: 0.8rem; font-weight: bold; height: 33px; cursor: pointer;">Añadir</button>
+                        </div>
+                    </fieldset>
+                </div>
+                <div class="modal-card-footer" style="padding: 1rem 1.25rem;">
+                    <button class="btn-modal-action btn-secondary-modal" onclick="MenuEditor.cerrar()">Cancelar</button>
+                    <button class="btn-modal-action btn-success-modal" onclick="MenuEditor.guardar()">Guardar Cambios</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    },
+
+    itemsTemp: {},
+
+    renderList() {
+        const container = document.getElementById('editor-active-items');
+        if (!container) return;
+
+        // Cargar menú en estado temporal al abrir si está vacío
+        if (!this.itemsTemp || Object.keys(this.itemsTemp).length === 0) {
+            this.itemsTemp = { ...MENU_RESTAURANTE };
+        }
+
+        const entries = Object.entries(this.itemsTemp);
+        if (entries.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--color-text-muted); font-size: 0.8rem; padding: 12px;">🚫 El menú está vacío. Agrega platos para comenzar.</div>`;
+            return;
+        }
+
+        container.innerHTML = entries.map(([nombre, precio], idx) => `
+            <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--color-border); padding-bottom: 6px;">
+                <span style="font-size: 0.8rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 2; color: var(--color-text-main);">${nombre}</span>
+                <input id="price-edit-${idx}" type="number" step="0.01" value="${precio}" onchange="MenuEditor.editarPrecio('${nombre}', this.value)" style="width: 75px; padding: 2px 6px; border-radius: 4px; background-color: var(--color-bg-surface); color: var(--color-text-main); border: 1px solid var(--color-border); font-size: 0.8rem; text-align: right;" />
+                <button onclick="MenuEditor.eliminarItem('${nombre}')" style="background: none; border: none; cursor: pointer; font-size: 1rem;" title="Eliminar plato">🗑️</button>
+            </div>
+        `).join('');
+    },
+
+    editarPrecio(nombre, valor) {
+        const p = parseFloat(valor);
+        if (!isNaN(p) && p >= 0) {
+            this.itemsTemp[nombre] = p;
+        }
+    },
+
+    eliminarItem(nombre) {
+        delete this.itemsTemp[nombre];
+        this.renderList();
+    },
+
+    vaciarMenu() {
+        if (confirm("¿Estás seguro de que deseas vaciar todo el menú? Deberás configurar nuevos platillos.")) {
+            this.itemsTemp = {};
+            this.renderList();
+        }
+    },
+
+    restablecerMenu() {
+        this.itemsTemp = { ...MENU_RESTAURANTE_DEFAULT };
+        this.renderList();
+    },
+
+    agregarItem() {
+        const nameInput = document.getElementById('new-item-name');
+        const priceInput = document.getElementById('new-item-price');
+        if (!nameInput || !priceInput) return;
+
+        const name = nameInput.value.trim();
+        const priceObj = parseFloat(priceInput.value);
+
+        if (!name) {
+            alert("El nombre del platillo es requerido.");
+            return;
+        }
+        if (isNaN(priceObj) || priceObj < 0) {
+            alert("Ingresa un precio numérico válido.");
+            return;
+        }
+
+        this.itemsTemp[name] = priceObj;
+        nameInput.value = '';
+        priceInput.value = '';
+        this.renderList();
+    },
+
+    guardar() {
+        MENU_RESTAURANTE = { ...this.itemsTemp };
+        localStorage.setItem('custom_menu_restaurante', JSON.stringify(MENU_RESTAURANTE));
+        this.cerrar();
+        alert("¡Menú guardado y actualizado con éxito!");
+        if (window.CocinaController && typeof window.CocinaController.renderMenu === 'function') {
+            window.CocinaController.renderMenu();
+        }
+        this.itemsTemp = {};
+    }
+};
+
+window.MenuEditor = MenuEditor;
+
+document.addEventListener('DOMContentLoaded', () => {
+    WaiterSession.init();
+});

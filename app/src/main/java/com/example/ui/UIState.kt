@@ -1,9 +1,11 @@
 package com.example.ui
 
+import kotlinx.serialization.Serializable
 import com.example.data.ItemPedido
 import com.example.data.Pedido
 
 // 1. ESTRUCTURACIÓN DE ITEM DEL MENÚ
+@Serializable
 data class MenuPlatillo(
     val nombre: String,
     val precio: Double,
@@ -12,10 +14,12 @@ data class MenuPlatillo(
     val emoji: String = "🍔"
 )
 
+@Serializable
 enum class CategoriaPlatillo(val etiqueta: String) {
     COMIDA("Comida Principal"),
     ACOMPANAMIENTO("Complementos / Entradas"),
-    BEBIDA("Bebidas y Jugos")
+    BEBIDA("Bebidas y Jugos"),
+    POSTRE("Postres y Dulces")
 }
 
 // 2. ITEM DRAFT SELECCIONADO PARA PEDIDO EN CONSTRUCCIÓN

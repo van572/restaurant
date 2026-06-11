@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/modals.css">
     <style>
         :root {
             --color-bg-base: #0F172A;
@@ -537,64 +538,6 @@
         .checkout-transferencia { background-color: #8B5CF6; color: white; }
         .checkout-transferencia:hover { background-color: #7C3AED; }
 
-        /* MODAL ESTILOS EN BASE A REUSABILIDAD */
-        .supabase-config-modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .supabase-config-modal-card {
-            background-color: var(--color-bg-depth);
-            border: 2px solid var(--color-border);
-            border-radius: 12px;
-            width: 480px;
-            max-width: 90%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-        }
-
-        .modal-card-header {
-            padding: 1.25rem;
-            border-bottom: 2px solid var(--color-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-card-header h3 { font-family: var(--font-display); font-size: 1.1rem; }
-        .btn-close-modal { background: none; border: none; color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer; }
-        .btn-close-modal:hover { color: var(--color-text-main); }
-
-        .modal-card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
-        .modal-instruccion-text { font-size: 0.85rem; color: var(--color-text-muted); }
-        .form-group-modal { display: flex; flex-direction: column; gap: 0.4rem; }
-        .form-group-modal label { font-size: 0.75rem; font-weight: 700; color: var(--color-accent); }
-        .form-group-modal input, .form-group-modal textarea {
-            background-color: var(--color-bg-base);
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            padding: 0.6rem;
-            color: var(--color-text-main);
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-        }
-        .form-group-modal input:focus, .form-group-modal textarea:focus { border-color: var(--color-secondary); outline: none; }
-        .status-connection-indicator { font-size: 0.8rem; padding: 0.6rem; background-color: var(--color-bg-surface); border-radius: 6px; text-align: center; }
-
-        .modal-card-footer { padding: 1rem 1.25rem; border-top: 2px solid var(--color-border); display: flex; justify-content: flex-end; gap: 0.75rem; }
-        .btn-modal-action { padding: 0.5rem 1rem; border-radius: 6px; font-weight: 700; font-family: var(--font-display); font-size: 0.85rem; cursor: pointer; border: none; }
-        .btn-secondary-modal { background-color: var(--color-bg-surface); color: var(--color-text-main); }
-        .btn-success-modal { background-color: var(--color-primary); color: #1E293B; }
-        .btn-danger-modal { background-color: var(--color-danger); color: white; margin-right: auto; }
-
         @media(max-width: 900px) {
             .caja-workspace { grid-template-columns: 1fr; }
             .facturadora-panel { position: relative; top: 0; max-height: none; }
@@ -614,6 +557,7 @@
             <a href="cocina.html" class="nav-button">Cocina (KDS)</a>
             <a href="caja.html" class="nav-button active">Caja (Cuentas)</a>
             <a href="auditoria.html" class="nav-button">Auditoría Diaria</a>
+            <a href="configuracion.html" class="nav-button">Configuración (QR)</a>
         </nav>
 
         <div class="right-control-panel">

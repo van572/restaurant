@@ -50,6 +50,9 @@ import com.example.data.ItemPedido
 import com.example.data.Pedido
 import com.example.data.PedidoRepository
 
+import kotlinx.serialization.Serializable
+
+// Presets Estándar del Menú para Selección por el Mesero
 // Presets Estándar del Menú para Selección por el Mesero
 val MENU_ITEMS = listOf(
     MenuPlatillo("Hamburguesa Premium", 12.50, CategoriaPlatillo.COMIDA, "Queso cheddar, tocino, aderezo gourmet.", "🍔"),
@@ -61,6 +64,32 @@ val MENU_ITEMS = listOf(
     MenuPlatillo("Refresco Sabor Cola", 2.50, CategoriaPlatillo.BEBIDA, "Vaso grande con hielo y limón.", "🥤"),
     MenuPlatillo("Agua Mineral", 2.00, CategoriaPlatillo.BEBIDA, "Agua gasificada purificada fría.", "💧")
 )
+
+fun saveMenuToPrefs(sharedPrefs: android.content.SharedPreferences, list: List<MenuPlatillo>) {
+    val serialized = list.joinToString("###") { p ->
+        "${p.nombre}||${p.precio}||${p.categoria.name}||${p.descripcion}||${p.emoji}"
+    }
+    sharedPrefs.edit().putString("custom_menu_items", serialized).apply()
+}
+
+fun loadMenuFromPrefs(sharedPrefs: android.content.SharedPreferences): List<MenuPlatillo>? {
+    val raw = sharedPrefs.getString("custom_menu_items", null) ?: return null
+    if (raw.trim().isEmpty()) return emptyList()
+    return try {
+        raw.split("###").map { item ->
+            val parts = item.split("||")
+            MenuPlatillo(
+                nombre = parts[0],
+                precio = parts[1].toDouble(),
+                categoria = CategoriaPlatillo.valueOf(parts[2]),
+                descripcion = if (parts.size > 3) parts[3] else "",
+                emoji = if (parts.size > 4) parts[4] else "🍔"
+            )
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -105,8 +134,17 @@ fun MeseroScreen(
     var showProfileDialog by remember { mutableStateOf(false) }
     var showConfirmOrderDialog by remember { mutableStateOf(false) }
 
-    // Menú dinámico editable / modificable
-    val menuPlatillos = remember { mutableStateListOf<MenuPlatillo>().apply { addAll(MENU_ITEMS) } }
+    // Menú dinámico editable / modificable cargado de SharedPreferences
+    val menuPlatillos = remember {
+        mutableStateListOf<MenuPlatillo>().apply {
+            val loaded = loadMenuFromPrefs(sharedPrefs)
+            if (loaded != null) {
+                addAll(loaded)
+            } else {
+                addAll(MENU_ITEMS)
+            }
+        }
+    }
 
     var showEditPlatilloDialog by remember { mutableStateOf(false) }
     var editingPlatillo by remember { mutableStateOf<MenuPlatillo?>(null) }
@@ -818,7 +856,6 @@ fun MeseroScreen(
                                     carrito = carrito,
                                     totalCarrito = totalCarrito,
                                     onEmpty = { activeTab = "menu" },
-                                    onVaciar = { carrito.clear() },
                                     onNotesClick = { idx, item ->
                                         activeNotesCartIndex = idx
                                         notesTextTemp = item.notas
@@ -907,33 +944,59 @@ fun MeseroScreen(
                                             }
                                         }
 
-                                        // ADD PLATILLO button
-                                        Button(
-                                            onClick = {
-                                                editingPlatillo = null // New
-                                                platilloNombreTemp = ""
-                                                platilloPrecioTemp = ""
-                                                platilloCategoriaTemp = categoriaSeleccionada
-                                                platilloDescripcionTemp = ""
-                                                platilloEmojiTemp = when (categoriaSeleccionada) {
-                                                    CategoriaPlatillo.COMIDA -> "🍔"
-                                                    CategoriaPlatillo.ACOMPANAMIENTO -> "🍟"
-                                                    CategoriaPlatillo.BEBIDA -> "🥤"
-                                                }
-                                                showEditPlatilloDialog = true
-                                            },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF6750A4).copy(alpha = 0.1f),
-                                                contentColor = Color(0xFF6750A4)
-                                            ),
-                                            modifier = Modifier.height(30.dp),
-                                            contentPadding = PaddingValues(horizontal = 10.dp),
-                                            shape = RoundedCornerShape(8.dp)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(Icons.Default.AddCircle, null, modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Crear Platillo", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                        }
+                                            FilledTonalButton(
+                                                onClick = {
+                                                    menuPlatillos.clear()
+                                                    menuPlatillos.addAll(MENU_ITEMS)
+                                                    saveMenuToPrefs(sharedPrefs, menuPlatillos)
+                                                    Toast.makeText(context, "Menú restablecido a predefinidos", Toast.LENGTH_SHORT).show()
+                                                },
+                                                colors = ButtonDefaults.filledTonalButtonColors(
+                                                    containerColor = Color(0xFF4F378B).copy(alpha = 0.1f),
+                                                    contentColor = Color(0xFF4F378B)
+                                                ),
+                                                modifier = Modifier.height(32.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(12.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Reset", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                            }
+
+                                            Button(
+                                                onClick = {
+                                                    editingPlatillo = null // New
+                                                    platilloNombreTemp = ""
+                                                    platilloPrecioTemp = ""
+                                                    platilloCategoriaTemp = categoriaSeleccionada
+                                                    platilloDescripcionTemp = ""
+                                                    platilloEmojiTemp = when (categoriaSeleccionada) {
+                                                        CategoriaPlatillo.COMIDA -> "🍔"
+                                                        CategoriaPlatillo.ACOMPANAMIENTO -> "🍟"
+                                                        CategoriaPlatillo.BEBIDA -> "🥤"
+                                                        CategoriaPlatillo.POSTRE -> "🍩"
+                                                        else -> "🍔"
+                                                    }
+                                                    showEditPlatilloDialog = true
+                                                 },
+                                                 colors = ButtonDefaults.buttonColors(
+                                                     containerColor = Color(0xFF6750A4),
+                                                     contentColor = Color.White
+                                                 ),
+                                                 modifier = Modifier.height(32.dp),
+                                                 contentPadding = PaddingValues(horizontal = 10.dp),
+                                                 shape = RoundedCornerShape(8.dp)
+                                             ) {
+                                                 Icon(Icons.Default.Add, null, modifier = Modifier.size(14.dp))
+                                                 Spacer(modifier = Modifier.width(4.dp))
+                                                 Text("Nuevo", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                             }
+                                         }
                                     }
                                 }
                             }
@@ -944,7 +1007,7 @@ fun MeseroScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    items(CategoriaPlatillo.values()) { cat ->
+                                    items(listOf(CategoriaPlatillo.COMIDA, CategoriaPlatillo.BEBIDA)) { cat ->
                                         val isCatSelected = categoriaSeleccionada == cat
                                         FilterChip(
                                             selected = isCatSelected,
@@ -960,38 +1023,83 @@ fun MeseroScreen(
                             // Grilla de platillos filtering corresponding category
                             item {
                                 val filtrados = menuPlatillos.filter { it.categoria == categoriaSeleccionada }
-                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    filtrados.chunked(2).forEach { rowPlatillos ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                if (filtrados.isEmpty()) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F2FA)),
+                                        border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(24.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            rowPlatillos.forEach { platillo ->
-                                                CardPlatillo(
-                                                    platillo = platillo,
-                                                    onAgregar = {
-                                                        val index = carrito.indexOfFirst { it.platillo.nombre == platillo.nombre }
-                                                        if (index != -1) {
-                                                            carrito[index] = carrito[index].copy(cantidad = carrito[index].cantidad + 1)
-                                                        } else {
-                                                            carrito.add(ItemCart(platillo, 1))
-                                                        }
-                                                        Toast.makeText(context, "${platillo.nombre} +. Comanda: $mesaSeleccionada", Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    onEditar = {
-                                                        editingPlatillo = platillo
-                                                        platilloNombreTemp = platillo.nombre
-                                                        platilloPrecioTemp = platillo.precio.toString()
-                                                        platilloCategoriaTemp = platillo.categoria
-                                                        platilloDescripcionTemp = platillo.descripcion
-                                                        platilloEmojiTemp = platillo.emoji
-                                                        showEditPlatilloDialog = true
-                                                    },
-                                                    modifier = Modifier.weight(1f)
-                                                )
+                                            Text("📭", fontSize = 48.sp)
+                                            Text(
+                                                text = "Categoría vacía o sin platillos",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF1D1B20)
+                                            )
+                                            Text(
+                                                text = "Crea un plato con el botón 'Nuevo' de arriba o restablece el menú estándar de inmediato.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color(0xFF49454F),
+                                                textAlign = TextAlign.Center
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Button(
+                                                onClick = {
+                                                    menuPlatillos.clear()
+                                                    menuPlatillos.addAll(MENU_ITEMS)
+                                                    saveMenuToPrefs(sharedPrefs, menuPlatillos)
+                                                    Toast.makeText(context, "Menú predefinido restaurado", Toast.LENGTH_SHORT).show()
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                                            ) {
+                                                Text("Restablecer Menú Estándar")
                                             }
-                                            if (rowPlatillos.size == 1) {
-                                                Spacer(modifier = Modifier.weight(1f))
+                                        }
+                                    }
+                                } else {
+                                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        filtrados.chunked(2).forEach { rowPlatillos ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                rowPlatillos.forEach { platillo ->
+                                                    CardPlatillo(
+                                                        platillo = platillo,
+                                                        onAgregar = {
+                                                            val index = carrito.indexOfFirst { it.platillo.nombre == platillo.nombre }
+                                                            if (index != -1) {
+                                                                carrito[index] = carrito[index].copy(cantidad = carrito[index].cantidad + 1)
+                                                            } else {
+                                                                carrito.add(ItemCart(platillo, 1))
+                                                            }
+                                                            Toast.makeText(context, "${platillo.nombre} +. Comanda: $mesaSeleccionada", Toast.LENGTH_SHORT).show()
+                                                        },
+                                                        onEditar = {
+                                                            editingPlatillo = platillo
+                                                            platilloNombreTemp = platillo.nombre
+                                                            platilloPrecioTemp = platillo.precio.toString()
+                                                            platilloCategoriaTemp = platillo.categoria
+                                                            platilloDescripcionTemp = platillo.descripcion
+                                                            platilloEmojiTemp = platillo.emoji
+                                                            showEditPlatilloDialog = true
+                                                        },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                                if (rowPlatillos.size == 1) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
                                             }
                                         }
                                     }
@@ -1005,7 +1113,6 @@ fun MeseroScreen(
                                     carrito = carrito,
                                     totalCarrito = totalCarrito,
                                     onEmpty = { },
-                                    onVaciar = { carrito.clear() },
                                     onNotesClick = { idx, item ->
                                         activeNotesCartIndex = idx
                                         notesTextTemp = item.notas
@@ -1567,7 +1674,7 @@ fun MeseroScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        CategoriaPlatillo.values().forEach { cat ->
+                        listOf(CategoriaPlatillo.COMIDA, CategoriaPlatillo.BEBIDA).forEach { cat ->
                             val isSel = platilloCategoriaTemp == cat
                             FilterChip(
                                 selected = isSel,
@@ -1633,6 +1740,7 @@ fun MeseroScreen(
                                 Toast.makeText(context, "¡Platillo modificado con éxito!", Toast.LENGTH_SHORT).show()
                             }
                         }
+                        saveMenuToPrefs(sharedPrefs, menuPlatillos)
                         showEditPlatilloDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
@@ -1653,6 +1761,7 @@ fun MeseroScreen(
                             onClick = {
                                 // Delete the item
                                 menuPlatillos.removeIf { it.nombre == original.nombre }
+                                saveMenuToPrefs(sharedPrefs, menuPlatillos)
                                 // Also remove from current cart/comanda
                                 carrito.removeIf { it.platillo.nombre == original.nombre }
                                 showEditPlatilloDialog = false
@@ -1980,7 +2089,6 @@ fun ActiveComandaSummaryBox(
     carrito: List<ItemCart>,
     totalCarrito: Double,
     onEmpty: () -> Unit,
-    onVaciar: () -> Unit,
     onNotesClick: (Int, ItemCart) -> Unit,
     onMinusClick: (Int, ItemCart) -> Unit,
     onPlusClick: (Int, ItemCart) -> Unit,
@@ -2017,11 +2125,6 @@ fun ActiveComandaSummaryBox(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = Color(0xFF1D1B20)
                     )
-                }
-                if (carrito.isNotEmpty()) {
-                    TextButton(onClick = onVaciar) {
-                        Text("Vaciar", color = Color(0xFFB3261E), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
                 }
             }
 

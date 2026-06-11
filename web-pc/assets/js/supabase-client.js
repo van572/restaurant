@@ -26,13 +26,13 @@ function isSupabaseConfigured(config) {
 }
 
 const currentConfig = getSupabaseConfig();
-let supabase = null;
+let supabaseClient = null;
 let isRealSupabase = false;
 
 if (isSupabaseConfigured(currentConfig)) {
     try {
         // Inicializar cliente oficial de Supabase
-        supabase = supabase.createClient(currentConfig.url, currentConfig.anonKey);
+        supabaseClient = supabase.createClient(currentConfig.url, currentConfig.anonKey);
         isRealSupabase = true;
         console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
     } catch (err) {
@@ -150,10 +150,28 @@ const DataService = {
     },
 
     // Obtener lista completa de pedidos activos
+    async fetchMenu() {
+        if (isRealSupabase) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('menu')
+                    .select('*');
+                if (error) throw error;
+                return data;
+            } catch (err) {
+                console.error("Error cargando menú desde Supabase:", err);
+                return null;
+            }
+        } else {
+            return null; // O devolver Mock si se prefiere
+        }
+    },
+
+    // Obtener lista completa de pedidos activos
     async fetchPedidos() {
         if (isRealSupabase) {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('pedidos')
                     .select('*')
                     .neq('estado', 'pagado')
@@ -173,7 +191,7 @@ const DataService = {
     async crearPedido(pedidoCustom) {
         if (isRealSupabase) {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('pedidos')
                     .insert([{
                         mesa: pedidoCustom.mesa,
@@ -198,7 +216,7 @@ const DataService = {
     async actualizarEstadoPedido(id, nuevoEstado) {
         if (isRealSupabase) {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('pedidos')
                     .update({ estado: nuevoEstado })
                     .eq('id', id)
@@ -219,7 +237,7 @@ const DataService = {
         if (isRealSupabase) {
             try {
                 // 1. Guardar log financiero
-                const { error: errAud } = await supabase
+                const { error: errAud } = await supabaseClient
                     .from('auditoria_financiera')
                     .insert([{
                         pedido_id: idPedido,
@@ -230,7 +248,7 @@ const DataService = {
                 if (errAud) throw errAud;
 
                 // 2. Marcar pedido como 'pagado'
-                const { data, error: errPed } = await supabase
+                const { data, error: errPed } = await supabaseClient
                     .from('pedidos')
                     .update({ estado: 'pagado' })
                     .eq('id', idPedido)
@@ -252,14 +270,14 @@ const DataService = {
         if (isRealSupabase) {
             try {
                 // Obtenemos los logs financieros
-                const { data: logs, error: errAud } = await supabase
+                const { data: logs, error: errAud } = await supabaseClient
                     .from('auditoria_financiera')
                     .select('*')
                     .order('creado_en', { ascending: false });
                 if (errAud) throw errAud;
 
                 // Obtenemos todos los pedidos para cruzar mesa y productos
-                const { data: pedidos, error: errPed } = await supabase
+                const { data: pedidos, error: errPed } = await supabaseClient
                     .from('pedidos')
                     .select('id, mesa, items, estado');
                 
@@ -295,7 +313,7 @@ const DataService = {
     // Suscribirse de forma reactiva a cambios en pedidos
     suscribirAPedidos(onUpdateCallback) {
         if (isRealSupabase) {
-            const channel = supabase
+            const channel = supabaseClient
                 .channel('pedidos-realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, (payload) => {
                     console.log('Cambio recibido de Supabase en tiempo real:', payload);
@@ -304,7 +322,7 @@ const DataService = {
                 })
                 .subscribe();
             return () => {
-                supabase.removeChannel(channel);
+                supabaseClient.removeChannel(channel);
             };
         } else {
             // Escuchar canal Broadcast para simular web sockets en tiempo real
@@ -323,7 +341,7 @@ const DataService = {
     // Suscribirse reactivamente a auditoria
     suscribirAAuditoria(onUpdateCallback) {
         if (isRealSupabase) {
-            const channel = supabase
+            const channel = supabaseClient
                 .channel('auditoria-realtime')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'auditoria_financiera' }, (payload) => {
                     console.log('Fondo recibido en Auditoría:', payload);
@@ -331,7 +349,7 @@ const DataService = {
                 })
                 .subscribe();
             return () => {
-                supabase.removeChannel(channel);
+                supabaseClient.removeChannel(channel);
             };
         } else {
             const handler = (event) => {
