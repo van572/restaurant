@@ -651,6 +651,7 @@ const SettingsModal = {
         }
 
         DataService.saveConfig(url, key);
+        alert("Configuración guardada. La página se recargará para conectar con Supabase.");
         this.cerrar();
     },
 

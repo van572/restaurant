@@ -32,8 +32,15 @@ function generarLoteQR() {
     grid.innerHTML = '';
     document.getElementById('result-container').style.display = 'block';
 
+    // Obtener config de Supabase para inyectar en el QR si existe el Real
+    const config = DataService.getConfig();
+    const hasConfig = DataService.isReal();
+
     for(let i = inicio; i <= fin; i++) {
-        const tableUrl = `${urlBase}?mesa=${i}`;
+        let tableUrl = `${urlBase}?mesa=${i}`;
+        if (hasConfig) {
+            tableUrl += `&sUrl=${encodeURIComponent(config.url)}&sKey=${encodeURIComponent(config.anonKey)}`;
+        }
         crearCardQR(i, tableUrl);
     }
 }

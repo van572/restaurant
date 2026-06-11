@@ -29,10 +29,36 @@ const currentConfig = getSupabaseConfig();
 let supabaseClient = null;
 let isRealSupabase = false;
 
-if (isSupabaseConfigured(currentConfig)) {
+// Intentar auto-configuración desde URL (útil para QRs)
+function checkUrlAutoConfig() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const sUrl = params.get('sUrl');
+        const sKey = params.get('sKey');
+        
+        if (sUrl && sKey) {
+            console.log("🛠️ Detectada configuración de Supabase en URL. Auto-configurando...");
+            localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify({ url: sUrl, anonKey: sKey }));
+            // Limpiar URL para que no quede la key ahí permanentemente visible al copiar/pegar
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('sUrl');
+            newUrl.searchParams.delete('sKey');
+            window.history.replaceState({}, '', newUrl.toString());
+            return { url: sUrl, anonKey: sKey };
+        }
+    } catch (e) {
+        console.warn("No se pudo procesar auto-config desde URL:", e);
+    }
+    return null;
+}
+
+const urlConfig = checkUrlAutoConfig();
+const activeConfig = urlConfig || getSupabaseConfig();
+
+if (isSupabaseConfigured(activeConfig)) {
     try {
         // Inicializar cliente oficial de Supabase
-        supabaseClient = supabase.createClient(currentConfig.url, currentConfig.anonKey);
+        supabaseClient = supabase.createClient(activeConfig.url, activeConfig.anonKey);
         isRealSupabase = true;
         console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
     } catch (err) {
@@ -83,63 +109,15 @@ if (!localStorage.getItem('demo_pedidos')) {
             estado: "pendiente",
             creado_en: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
             actualizado_en: new Date(Date.now() - 20 * 60 * 1000).toISOString()
-        },
-        {
-            id: 2,
-            mesa: "Mesa 7",
-            mesero: "María Rojas",
-            items: [
-                { producto: "Pizza Personal Pepperoni", cantidad: 1, precio: 15.00, notas: "Borde de queso" },
-                { producto: "Té Frío Limón", cantidad: 1, precio: 3.00, notas: "" }
-            ],
-            total: 18.00,
-            estado: "cocinando",
-            creado_en: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-            actualizado_en: new Date(Date.now() - 8 * 60 * 1000).toISOString()
-        },
-        {
-            id: 3,
-            mesa: "Mesa 1",
-            mesero: "Carlos Gómez",
-            items: [
-                { producto: "Tacos de Res (x3)", cantidad: 2, precio: 8.50, notas: "Limón extra" },
-                { producto: "Agua Mineral", cantidad: 2, precio: 2.00, notas: "" }
-            ],
-            total: 21.00,
-            estado: "listo",
-            creado_en: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-            actualizado_en: new Date(Date.now() - 5 * 60 * 1000).toISOString()
         }
     ];
     saveLocalPedidos(pedidosIniciales);
 }
 
-if (!localStorage.getItem('demo_auditoria')) {
-    const auditoriaInicial = [
-        {
-            id: 101,
-            pedido_id: 99,
-            monto: 45.50,
-            metodo_pago: "tarjeta",
-            mesero: "María Rojas",
-            creado_en: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-        },
-        {
-            id: 102,
-            pedido_id: 98,
-            monto: 15.00,
-            metodo_pago: "efectivo",
-            mesero: "Carlos Gómez",
-            creado_en: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString()
-        }
-    ];
-    saveLocalAuditoria(auditoriaInicial);
-}
-
 // 4. API UNIFICADA DE ACCESO A DATOS (Abstrae Supabase / LocalSim)
 const DataService = {
     isReal: () => isRealSupabase,
-    getConfig: () => currentConfig,
+    getConfig: () => getSupabaseConfig(),
     saveConfig: (url, anonKey) => {
         localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify({ url, anonKey }));
         location.reload();
@@ -368,14 +346,20 @@ const DataService = {
     // Suscribirse de forma reactiva a cambios en pedidos
     suscribirAPedidos(onUpdateCallback) {
         if (isRealSupabase) {
+            console.log("📡 Suscribiéndose a canal 'pedidos-realtime'...");
             const channel = supabaseClient
                 .channel('pedidos-realtime')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, (payload) => {
-                    console.log('Cambio recibido de Supabase en tiempo real:', payload);
+                    console.log('🔔 Cambio recibido de Supabase en tiempo real:', payload);
                     // Disparar recarga a través del callback
                     onUpdateCallback(payload);
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    console.log(`📡 Status del canal 'pedidos-realtime': ${status}`);
+                    if (status === 'CLOSED') {
+                        console.warn("⚠️ El canal Realtime se cerró. ¿Está habilitado Realtime para la tabla 'pedidos'?");
+                    }
+                });
             return () => {
                 supabaseClient.removeChannel(channel);
             };
