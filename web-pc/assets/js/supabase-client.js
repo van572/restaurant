@@ -51,9 +51,13 @@ const activeConfig = urlConfig || getSupabaseConfig();
 
 if (isSupabaseConfigured(activeConfig)) {
     try {
-        supabaseClient = supabase.createClient(activeConfig.url, activeConfig.anonKey);
-        isRealSupabase = true;
-        console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
+        if (typeof supabase === 'undefined') {
+            console.error("❌ El SDK de Supabase (CDN) no se cargó correctamente. Verifica la conexión a internet.");
+        } else {
+            supabaseClient = supabase.createClient(activeConfig.url, activeConfig.anonKey);
+            isRealSupabase = true;
+            console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
+        }
     } catch (err) {
         console.error("❌ Error inicializando Supabase:", err);
     }
@@ -89,7 +93,13 @@ const DataService = {
     async fetchMenu() {
         if (!isRealSupabase) throw new Error("Supabase no configurado");
         const { data, error } = await supabaseClient.from('menu').select('*');
-        if (error) throw error;
+        if (error) {
+            console.error("❌ Error de Supabase al obtener el menú. Verifica las políticas RLS.");
+            throw error;
+        }
+        if (!data || data.length === 0) {
+            console.warn("⚠️ Menú vacío o denegado por RLS. Asegúrate de tener una política SELECT habilitada para 'anon'.");
+        }
         return data;
     },
 
@@ -99,7 +109,13 @@ const DataService = {
         const { data, error } = await query.order('creado_en', { ascending: true }).catch(() => {
             return query.order('id', { ascending: true });
         });
-        if (error) throw error;
+        if (error) {
+            console.error("❌ Error de Supabase al obtener pedidos. Verifica las políticas RLS.");
+            throw error;
+        }
+        if (!data || data.length === 0) {
+            console.warn("⚠️ No se devolvieron pedidos. Verifica si la tabla tiene datos o si RLS está filtrando los registros.");
+        }
         return data;
     },
 
@@ -161,12 +177,18 @@ const DataService = {
             .from('auditoria_financiera')
             .select('*')
             .order('creado_en', { ascending: false });
-        if (errAud) throw errAud;
+        if (errAud) {
+            console.error("❌ Error de Supabase al obtener auditoría. Verifica RLS.");
+            throw errAud;
+        }
 
         const { data: pedidos, error: errPed } = await supabaseClient
             .from('pedidos')
             .select('id, mesa, items, estado');
-        if (errPed) throw errPed;
+        if (errPed) {
+            console.error("❌ Error de Supabase al obtener pedidos vinculados en auditoría. Verifica RLS.");
+            throw errPed;
+        }
         
         return (logs || []).map(log => ({
             ...log,
@@ -207,3 +229,10 @@ const DataService = {
         return () => supabaseClient.removeChannel(channel);
     }
 };
+
+// Asegurar disponibilidad global explícita para otros scripts (como cliente-app.js)
+window.DataService = DataService;
+if (typeof supabaseClient !== 'undefined') window.supabaseClient = supabaseClient;
+window.isRealSupabase = isRealSupabase;
+window.isSupabaseConfigured = isSupabaseConfigured;
+window.getSupabaseConfig = getSupabaseConfig;

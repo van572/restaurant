@@ -688,6 +688,9 @@ const SettingsModal = {
                     <div class="status-connection-indicator">
                         Estatus actual: <strong>${DataService.isReal() ? '🟢 Conectado a la Nube' : '🔴 Supabase No Configurado'}</strong>
                     </div>
+                    <div style="margin-top: 15px; padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; font-size: 0.75rem; color: #94A3B8; border-left: 3px solid #3B82F6;">
+                        <strong>💡 Tip de Seguridad (RLS):</strong> Si al conectar no ves datos, asegúrate de crear una política de <strong>SELECT</strong> para usuarios <em>anon</em> (públicos) en tu dashboard de Supabase para las tablas <code>pedidos</code>, <code>menu</code> y <code>auditoria_financiera</code>.
+                    </div>
                 </div>
                 <div class="modal-card-footer">
                     ${DataService.isReal() ? `<button class="btn-modal-action btn-danger-modal" onclick="SettingsModal.desvincular()">Eliminar Configuración</button>` : ''}
