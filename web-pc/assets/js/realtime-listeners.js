@@ -78,4 +78,3 @@ function crearContenedorNotificaciones() {
 }
 
 // Fin de lógica de notificaciones
-});

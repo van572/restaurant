@@ -88,11 +88,26 @@ async function cargarMenu() {
             throw new Error("CONFIG_MISSING");
         }
 
-        const menuData = await DataService.fetchMenu();
+        let menuData = null;
+        try {
+            menuData = await DataService.fetchMenu();
+        } catch (fetchErr) {
+            console.warn("⚠️ Error obteniendo menú directo de Supabase, activando fallback local:", fetchErr);
+            const msg = fetchErr.message || String(fetchErr);
+            if (msg.includes("schema cache") || msg.includes("does not exist") || msg.includes("relation") || msg.includes("404") || msg.includes("400")) {
+                state.supabaseSchemaError = msg;
+                state.menu = MENU_DEFAULT_CLIENTE;
+                renderMenu();
+                return;
+            } else {
+                throw fetchErr;
+            }
+        }
         
         if (!menuData || menuData.length === 0) {
-            console.warn("La tabla de menú en Supabase está vacía.");
-            state.menu = [];
+            console.warn("La tabla de menú en Supabase está vacía. Cargando menú de demostración.");
+            state.menu = MENU_DEFAULT_CLIENTE;
+            state.supabaseSchemaError = "La tabla 'menu' existe pero está vacía. Mostrando lista por defecto.";
             renderMenu();
             return;
         }
@@ -135,6 +150,51 @@ function renderMenu() {
     const container = document.getElementById('main-content');
     container.innerHTML = '';
     
+    // Si hay un error de esquema o tabla inexistente de Supabase, mostramos un banner informativo didáctico arriba
+    if (state.supabaseSchemaError) {
+        const errorBanner = document.createElement('div');
+        errorBanner.className = 'schema-warning-banner';
+        errorBanner.style.cssText = `
+            background: #FFFBEB;
+            color: #78350F;
+            border: 1px solid #FDE68A;
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: var(--shadow);
+            text-align: left;
+        `;
+        errorBanner.innerHTML = `
+            <div style="display:flex; align-items:flex-start; gap:10px;">
+                <ion-icon name="warning-outline" style="font-size: 1.6rem; color: #D97706; flex-shrink: 0;"></ion-icon>
+                <div>
+                    <strong style="display:block; margin-bottom:4px; font-size:0.95rem; color: #92400E;">⚠️ Base de datos incompleta en Supabase</strong>
+                    <span>Tu base de datos de Supabase está enlazada pero le faltan tablas del sistema (como <strong>'public.menu'</strong>). Hemos activado el <strong>Menú Local de Emergencia</strong> para que puedas seguir probando todo el flujo de pedidos de inmediato.</span>
+                </div>
+            </div>
+            <div style="background: rgba(251, 191, 36, 0.1); border-radius: 12px; padding: 12px; font-size: 0.8rem;">
+                <p style="font-weight:700; margin-bottom: 6px; color: #92400E; display: flex; align-items: center; gap: 4px;">
+                    <ion-icon name="code-working-outline"></ion-icon> Solución en 1 minuto:
+                </p>
+                <ol style="margin-left: 18px; display: flex; flex-direction: column; gap: 4px;">
+                    <li>Entra a la consola de <a href="https://supabase.com" target="_blank" style="color:var(--primary); font-weight:700; text-decoration:underline;">Supabase</a>.</li>
+                    <li>Ve a la pestaña <strong>"SQL Editor"</strong> (menú izquierdo) y pulsa <strong>"Create query" / "New Query"</strong>.</li>
+                    <li>Abre el archivo <strong style="font-family:monospace; background:rgba(0,0,0,0.05); padding:2px 4px; border-radius:3px;">database/esquema.sql</strong> de tu proyecto, copia su contenido completo y pégalo allí.</li>
+                    <li>Presiona el botón <strong style="color:#059669;">"Run"</strong> para generar todas las tablas e inicializar los platos de una sola vez.</li>
+                </ol>
+            </div>
+            <div style="font-size: 0.7rem; opacity: 0.7; font-family: monospace; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 6px;">
+                Error: ${state.supabaseSchemaError}
+            </div>
+        `;
+        container.appendChild(errorBanner);
+    }
+
     if (state.menu.length === 0) {
         container.innerHTML = '<p style="text-align:center;">No hay productos disponibles por ahora.</p>';
         return;
@@ -328,7 +388,20 @@ async function enviarPedidoCliente() {
             throw new Error("Respuesta del servidor incompleta");
         }
     } catch (e) {
-        alert("Error de conexión: " + e.message);
+        if (state.supabaseSchemaError) {
+            console.warn("⚠️ Detectado error de tabla en Supabase. Simulando pedido localmente como respaldo...");
+            const tempId = 'sim-' + Date.now();
+            state.activeOrderId = tempId;
+            sessionStorage.setItem('active_order_id', tempId);
+            showSuccess(true); // Pasar true para indicar MODO DEMO
+            
+            // Simular cambios de estado locales para que el usuario vea cómo funcionaría
+            setTimeout(() => updateStatusUI('cocinando'), 5000);
+            setTimeout(() => updateStatusUI('listo'), 15000);
+            return;
+        }
+
+        alert("Error al enviar pedido: " + e.message);
         state.isSending = false;
         btn.disabled = false;
         btn.innerHTML = 'Enviar pedido a cocina';
@@ -383,21 +456,28 @@ async function solicitarMesa(tipo) {
 
 window.solicitarMesa = solicitarMesa;
 
-function showSuccess() {
+function showSuccess(isDemo = false) {
     closeCart();
     document.getElementById('cart-bar').style.display = 'none';
     const container = document.getElementById('main-content');
     container.innerHTML = `
         <div class="success-view">
-            <ion-icon name="checkmark-circle" style="font-size: 5rem; color: var(--success); margin-bottom: 20px;"></ion-icon>
-            <h2 style="margin-bottom: 12px;">¡Pedido enviado con éxito!</h2>
-            <p style="color: var(--text-muted); margin-bottom: 30px;">Estamos preparando tus platillos deliciosos. En un momento te los llevaremos a tu mesa.</p>
+            <ion-icon name="${isDemo ? 'flask-outline' : 'checkmark-circle'}" style="font-size: 5rem; color: ${isDemo ? 'var(--warning)' : 'var(--success)'}; margin-bottom: 20px;"></ion-icon>
+            <h2 style="margin-bottom: 12px;">${isDemo ? '¡Simulación Enviada!' : '¡Pedido enviado con éxito!'}</h2>
+            <p style="color: var(--text-muted); ${isDemo ? 'font-weight:bold;' : ''} margin-bottom: 30px;">
+                ${isDemo ? '⚠️ ATENCIÓN: El pedido NO se envió a cocina real porque faltan tablas en Supabase. Estás viendo una simulación local.' : 'Estamos preparando tus platillos deliciosos. En un momento te los llevaremos a tu mesa.'}
+            </p>
             <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow);">
-                <p style="font-weight: 700; color: var(--primary);">ESTADO: EN PREPARACIÓN 🥑</p>
-                <p style="font-size: 0.85rem; margin-top: 8px;">Si necesitas algo más, puedes volver a escanear el código QR.</p>
+                <p id="status-step-text" style="font-weight: 700; color: var(--primary);">ESTADO: ${isDemo ? 'SIMULANDO PREPARACIÓN 🧪' : 'EN PREPARACIÓN 🥑'}</p>
+                <div style="width: 100%; background: #E2E8F0; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden;">
+                    <div id="status-progress-bar" style="width: 33%; background: var(--primary); height: 100%; transition: width 1s ease;"></div>
+                </div>
+                <p style="font-size: 0.85rem; margin-top: 12px; color: #64748B;">
+                    ${isDemo ? '<strong>Para corregir esto:</strong> Copia el contenido de <b>database/esquema.sql</b> y ejecútalo en el SQL Editor de tu Supabase.' : 'Si necesitas algo más, puedes volver a escanear el código QR.'}
+                </p>
             </div>
             <button class="confirm-btn" style="margin-top: 40px; background: var(--text-main);" onclick="location.reload()">
-                Hacer otro pedido
+                ${isDemo ? 'Volver al Menú' : 'Hacer otro pedido'}
             </button>
         </div>
     `;

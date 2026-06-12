@@ -104,7 +104,7 @@ const DataService = {
         const { data, error } = await supabaseClient.from('menu').select('*');
         if (error) {
             console.error("❌ Error de Supabase al obtener el menú. Verifica las políticas RLS.");
-            throw error;
+            throw new Error(error.message || error.details || JSON.stringify(error));
         }
         if (!data || data.length === 0) {
             console.warn("⚠️ Menú vacío o denegado por RLS. Asegúrate de tener una política SELECT habilitada para 'anon'.");
@@ -114,16 +114,27 @@ const DataService = {
 
     async fetchPedidos() {
         if (!isRealSupabase) throw new Error("Supabase no configurado");
+        
         let query = supabaseClient.from('pedidos').select('*').neq('estado', 'pagado');
-        const { data, error } = await query.order('creado_en', { ascending: true }).catch(() => {
-            return query.order('id', { ascending: true });
-        });
+        
+        // Intentar ordenar por creado_en, si falla (porque no existe), intentar por id
+        const { data, error } = await query.order('creado_en', { ascending: true });
+        
         if (error) {
-            console.error("❌ Error de Supabase al obtener pedidos. Verifica las políticas RLS.");
-            throw error;
+            console.warn("Fallo ordenando por creado_en, intentando por id:", error.message);
+            const retry = await supabaseClient.from('pedidos').select('*').neq('estado', 'pagado').order('id', { ascending: true });
+            if (retry.error) {
+                console.error("❌ Error definitivo de Supabase al obtener pedidos:", retry.error);
+                if (retry.error.code === '42P01' || retry.error.message.includes('schema cache')) {
+                    throw new Error("La tabla 'pedidos' no existe. Ejecuta el contenido de database/esquema.sql en Supabase.");
+                }
+                throw retry.error;
+            }
+            return retry.data;
         }
+        
         if (!data || data.length === 0) {
-            console.warn("⚠️ No se devolvieron pedidos. Verifica si la tabla tiene datos o si RLS está filtrando los registros.");
+            console.warn("⚠️ No se devolvieron pedidos. Verifica si la tabla tiene datos o si RLS está filtrando.");
         }
         return data;
     },

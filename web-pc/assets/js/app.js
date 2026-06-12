@@ -264,7 +264,17 @@ const CajaController = {
                 const act = this.pedidos.find(p => p.id == this.pedidoSeleccionado.id);
                 if (act) this.verDetalle(act.id); else this.cerrarDetalle();
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("Caja Error:", e);
+            const cont = document.getElementById('grid-mesas-caja');
+            if (cont) cont.innerHTML = `
+                <div class="alerta-vacia total-ancho" style="border-color: var(--color-danger); background: rgba(239, 68, 68, 0.05);">
+                    <h3 style="color: var(--color-danger); margin-bottom: 10px;">❌ Error de Conexión</h3>
+                    <p style="color: white; margin-bottom: 5px;">${e.message || 'No se pudieron cargar los pedidos.'}</p>
+                    <p style="font-size: 0.85rem; color: var(--color-text-muted);">Verifica que las tablas existan en Supabase ejecutando el script en <b>database/esquema.sql</b>.</p>
+                </div>
+            `;
+        }
     },
 
     renderListaMesas() {
