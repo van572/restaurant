@@ -147,3 +147,26 @@ SET precio = EXCLUDED.precio,
     categoria = EXCLUDED.categoria,
     descripcion = EXCLUDED.descripcion,
     emoji = EXCLUDED.emoji;
+
+-- 7. SISTEMA DE LIMPIEZA AUTOMÁTICA (CADA 24 HORAS)
+-- Esta función borra pedidos, auditoría y solicitudes, reiniciando los contadores (IDs).
+CREATE OR REPLACE FUNCTION public.limpiar_datos_diarios()
+RETURNS void AS $$
+BEGIN
+    TRUNCATE TABLE public.pedidos RESTART IDENTITY CASCADE;
+    TRUNCATE TABLE public.auditoria_financiera RESTART IDENTITY CASCADE;
+    TRUNCATE TABLE public.solicitudes_servicio RESTART IDENTITY CASCADE;
+END;
+$$ LANGUAGE plpgsql;
+
+/* 
+  INSTRUCCIONES PARA ACTIVAR LA LIMPIEZA AUTOMÁTICA EN SUPABASE:
+  
+  1. Ve a tu Dashboard de Supabase > Database > Extensions.
+  2. Busca y activa la extensión "pg_cron".
+  3. Ve al SQL Editor y ejecuta:
+     
+     SELECT cron.schedule('limpieza-diaria-restaurante', '0 0 * * *', 'SELECT public.limpiar_datos_diarios()');
+     
+  Esto hará que todos los días a medianoche se limpie la app automáticamente.
+*/

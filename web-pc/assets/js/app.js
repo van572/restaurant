@@ -494,14 +494,128 @@ const SolicitudesController = {
 // 8. ADMIN MENÚ
 // ----------------------------------------------------
 const AdminMenuController = {
-    async init() { await this.cargar(); },
-    async cargar() {
-        const menu = await DataService.fetchMenu();
-        const cont = document.getElementById('admin-menu-list');
-        if (cont) cont.innerHTML = menu.map(m => `<div style="background:var(--color-bg-surface); padding:8px; margin-bottom:4px; display:flex; justify-content:space-between;"><span>${m.nombre} ($${m.precio})</span><button onclick="AdminMenuController.toggle(${m.id}, ${m.disponible})">${m.disponible ? 'Desactivar' : 'Activar'}</button></div>`).join('');
+    menu: [],
+    async init() {
+        await this.cargar();
+        // Suscribirse a cambios en tiempo real del menú si está disponible
+        if (DataService.suscribirAMenu) {
+            DataService.suscribirAMenu(async () => {
+                await this.cargar();
+            });
+        }
     },
-    async toggle(id, d) { await DataService.actualizarDisponibilidadMenu(id, !d); await this.cargar(); },
-    agregarNuevo() { /* logic */ }
+    async cargar() {
+        try {
+            this.menu = await DataService.fetchMenu();
+            this.render();
+        } catch (e) {
+            console.error("Error al cargar menú en Admin:", e);
+        }
+    },
+    render() {
+        const cont = document.getElementById('admin-menu-list');
+        if (!cont) return;
+
+        if (this.menu.length === 0) {
+            cont.innerHTML = `
+                <div class="alerta-vacia total-ancho">
+                    <h3>No hay platillos en el menú 🍽️</h3>
+                    <p>Agrega el primer platillo usando el botón superior.</p>
+                </div>
+            `;
+            return;
+        }
+
+        cont.innerHTML = this.menu.sort((a, b) => a.categoria.localeCompare(b.categoria)).map(m => `
+            <div class="mesa-caja-card" style="cursor: default; border-color: ${m.disponible ? 'var(--color-border)' : 'var(--color-danger)'}; opacity: ${m.disponible ? 1 : 0.7};">
+                <div class="caja-mesa-header">
+                    <span class="mesa-tag-number" style="background: var(--color-bg-surface);">${m.emoji || '🍴'} ${m.categoria}</span>
+                    <span class="mesa-estado-pill ${m.disponible ? 'border-listo' : 'border-pendiente'}">
+                        ${m.disponible ? 'ACTIVO' : 'SIN STOCK'}
+                    </span>
+                </div>
+                <div class="caja-mesa-body">
+                    <h3 style="font-size: 1.1rem; margin-top: 5px;">${m.nombre}</h3>
+                    <p class="caja-mesa-mesero">${m.descripcion || 'Sin descripción'}</p>
+                    <p class="caja-mesa-monto" style="margin-top: 10px;">${formatCurrency(m.precio)}</p>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 15px;">
+                    <button onclick="AdminMenuController.toggle(${m.id}, ${m.disponible})" class="btn-checkout" style="background: ${m.disponible ? 'var(--color-accent)' : 'var(--color-primary)'}; padding: 6px; font-size: 0.75rem;">
+                        <span>${m.disponible ? '🚫' : '✅'}</span> ${m.disponible ? 'Pausar' : 'Activar'}
+                    </button>
+                    <button onclick="AdminMenuController.editar(${m.id})" class="btn-checkout checkout-tarjeta" style="padding: 6px; font-size: 0.75rem;">
+                        <span>✏️</span> Editar
+                    </button>
+                    <button onclick="AdminMenuController.borrar(${m.id})" class="btn-checkout" style="background: var(--color-danger); padding: 6px; font-size: 0.75rem;">
+                        <span>🗑️</span> Borrar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    },
+    async toggle(id, d) {
+        try {
+            await DataService.actualizarDisponibilidadMenu(id, !d);
+            AppNotifications.show(`Disponibilidad actualizada`, 'info');
+            await this.cargar();
+        } catch (e) { alert(e.message); }
+    },
+    async agregarNuevo() {
+        this.mostrarFormulario();
+    },
+    async editar(id) {
+        const item = this.menu.find(m => m.id === id);
+        if (item) this.mostrarFormulario(item);
+    },
+    async borrar(id) {
+        if (!confirm("¿Seguro que deseas eliminar este platillo del menú? Esta acción no se puede deshacer.")) return;
+        try {
+            await DataService.eliminarItemMenu(id);
+            AppNotifications.show(`Platillo eliminado`, 'info');
+            await this.cargar();
+        } catch (e) { alert(e.message); }
+    },
+    mostrarFormulario(item = null) {
+        const isEditing = !!item;
+        const nombre = prompt("Nombre del platillo:", item ? item.nombre : "");
+        if (nombre === null) return;
+        if (!nombre.trim()) return alert("El nombre es obligatorio");
+
+        const precio = prompt("Precio:", item ? item.precio : "");
+        if (precio === null) return;
+        const precioNum = parseFloat(precio);
+        if (isNaN(precioNum)) return alert("El precio debe ser un número");
+
+        const categoria = prompt("Categoría (COMIDA, BEBIDA, ACOMPAÑAMIENTO, POSTRE):", item ? item.categoria : "COMIDA");
+        if (categoria === null) return;
+
+        const descripcion = prompt("Descripción breve:", item ? item.descripcion : "");
+        if (descripcion === null) return;
+
+        const emoji = prompt("Emoji sugerido:", item ? item.emoji : "🍔");
+        if (emoji === null) return;
+
+        const nuevoItem = {
+            id: item ? item.id : undefined,
+            nombre: nombre.trim(),
+            precio: precioNum,
+            categoria: categoria.toUpperCase().trim(),
+            descripcion: descripcion.trim(),
+            emoji: emoji.trim(),
+            disponible: item ? item.disponible : true
+        };
+
+        this.guardar(nuevoItem);
+    },
+    async guardar(item) {
+        try {
+            await DataService.guardarItemMenu(item);
+            AppNotifications.show(`Menú actualizado correctamente`, 'info');
+            await this.cargar();
+        } catch (e) {
+            alert("Error al guardar: " + e.message);
+        }
+    }
 };
 
 // Global bindings
