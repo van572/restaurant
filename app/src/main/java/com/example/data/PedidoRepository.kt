@@ -261,19 +261,39 @@ class PedidoRepository(
                 channelId,
                 "Pedidos Listos",
                 android.app.NotificationManager.IMPORTANCE_HIGH
-            )
+            ).apply {
+                description = "Notificaciones para platos que ya salieron de cocina"
+                enableLights(true)
+                lightColor = android.graphics.Color.GREEN
+                enableVibration(true)
+                vibrationPattern = longArrayOf(100, 200, 300, 400, 500, 400, 300, 200, 400)
+            }
             notificationManager.createNotificationChannel(channel)
         }
 
         val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("¡Pedido Listo!")
-            .setContentText("El pedido de la ${pedido.mesa} está listo para ser servido.")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("¡Pedido Listo! 🍽️")
+            .setContentText("${pedido.mesa} ya tiene sus platos listos.")
+            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText("Mesa: ${pedido.mesa}\nMensaje: La cocina ha marcado el pedido como listo para servir.\nMesero asignado: ${pedido.mesero}"))
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(androidx.core.app.NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
 
-        notificationManager.notify(pedido.id?.toInt() ?: 0, builder.build())
-        Log.i(TAG, "Notificación enviada para pedido ${pedido.id}")
+        // Realizar una vibración manual adicional si es posible
+        try {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                vibrator.vibrate(500)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo hacer vibrar el dispositivo: ${e.message}")
+        }
+
+        notificationManager.notify(pedido.id?.toInt() ?: System.currentTimeMillis().toInt(), builder.build())
+        Log.i(TAG, "Notificación intrusiva enviada para pedido ${pedido.id}")
     }
 
     // --- ACCIÓN: CREAR UN NUEVO PEDIDO ---

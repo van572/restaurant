@@ -19,12 +19,12 @@ function generarLoteQR() {
     const fin = parseInt(document.getElementById('mesa-fin').value);
     
     if (!urlBase) {
-        alert("Por favor ingresa una URL válida.");
+        Toast.error("Error", "Por favor ingresa una URL válida.");
         return;
     }
 
     if (isNaN(inicio) || isNaN(fin) || inicio > fin) {
-        alert("Rango de mesas inválido.");
+        Toast.error("Rango Inválido", "El rango de mesas no es válido.");
         return;
     }
 
@@ -43,6 +43,7 @@ function generarLoteQR() {
         }
         crearCardQR(i, tableUrl);
     }
+    Toast.success("Generación Exitosa", `Se han creado ${fin - inicio + 1} etiquetas QR.`);
 }
 
 function crearCardQR(numeroMesa, url) {
@@ -96,8 +97,9 @@ function descargarQR(numero) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        Toast.info("Descargando", `Mesa ${numero} lista.`);
     } else {
         // A veces tarda milisegundos en renderizar canvas a img
-        alert("La imagen aún se está generando. Intenta en un segundo.");
+        Toast.warning("Generando...", "La imagen aún se está creando. Reintenta.");
     }
 }

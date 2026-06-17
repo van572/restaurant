@@ -146,6 +146,19 @@ fun MeseroScreen(
         }
     }
 
+    // --- SINCRONIZACIÓN DEL MENÚ CON LA NUBE ---
+    LaunchedEffect(Unit) {
+        if (repository.isSupabaseConfigured) {
+            repository.fetchDynamicMenu { cloudMenu ->
+                if (cloudMenu != null && cloudMenu.isNotEmpty()) {
+                    menuPlatillos.clear()
+                    menuPlatillos.addAll(cloudMenu)
+                    saveMenuToPrefs(sharedPrefs, cloudMenu)
+                }
+            }
+        }
+    }
+
     var showEditPlatilloDialog by remember { mutableStateOf(false) }
     var editingPlatillo by remember { mutableStateOf<MenuPlatillo?>(null) }
     var platilloNombreTemp by remember { mutableStateOf("") }
@@ -392,6 +405,15 @@ fun MeseroScreen(
                         IconButton(
                             onClick = { 
                                 repository.refreshPedidos()
+                                if (repository.isSupabaseConfigured) {
+                                    repository.fetchDynamicMenu { cloudMenu ->
+                                        if (cloudMenu != null) {
+                                            menuPlatillos.clear()
+                                            menuPlatillos.addAll(cloudMenu)
+                                            saveMenuToPrefs(sharedPrefs, cloudMenu)
+                                        }
+                                    }
+                                }
                                 Toast.makeText(context, "Sincronizando...", Toast.LENGTH_SHORT).show()
                             },
                             modifier = Modifier

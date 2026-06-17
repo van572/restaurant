@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punto de Venta | Control de Inventario</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/notificaciones.css">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    
+    <style>
+        :root {
+            /* Tema Oscuro Naranja Moderno */
+            --bg-body: #0f1115;
+            --bg-card: #1c1f26;
+            --bg-header: #010409;
+            --primary: #ff6b00;
+            --primary-hover: #ff8533;
+            --accent: #00e676;
+            --danger: #ff4747;
+            --text-main: #ffffff;
+            --text-dim: #aebac1;
+            --border: rgba(255, 255, 255, 0.05);
+            --shadow: 0 10px 30px rgba(0,0,0,0.4);
+            --font: 'Plus Jakarta Sans', sans-serif;
+            --radius: 16px;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; outline:none; }
+
+        body {
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- HEADER & TABS --- */
+        header {
+            background: var(--bg-header);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-info h1 { font-size: 1.2rem; color: #fff; }
+        .header-info span { font-size: 0.8rem; color: var(--text-dim); }
+
+        .tabs-categorias {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 80px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            white-space: nowrap;
+            font-size: 0.9rem;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(255, 107, 0, 0.3);
+        }
+
+        /* --- LAYOUT PRINCIPAL --- */
+        main {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 0;
+            flex-grow: 1;
+        }
+
+        /* --- SECCIÓN PRODUCTOS --- */
+        .productos-grid {
+            padding: 25px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            align-content: start;
+        }
+
+        .producto-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .producto-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: var(--shadow);
+        }
+
+        .producto-card:active { transform: scale(0.96); }
+
+        .producto-emoji { font-size: 2rem; margin-bottom: 10px; display: block; }
+        .producto-nombre { font-weight: 700; display: block; margin-bottom: 4px; color: #fff; }
+        .producto-meta { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-dim); margin-top: 10px; }
+        .producto-precio { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-top: 10px; }
+
+        .badge-kg { background: rgba(0, 230, 118, 0.1); color: #00e676; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+
+        /* --- CARRITO (DERECHA) --- */
+        aside {
+            background: var(--bg-header);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .carrito-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .lista-items {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .item-carrito {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            align-items: center;
+            gap: 15px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } }
+
+        .item-info h4 { font-size: 0.95rem; margin-bottom: 4px; }
+        .item-info span { font-size: 0.8rem; color: var(--text-dim); }
+
+        .item-cantidad { font-weight: 600; color: var(--primary); }
+
+        .btn-remove {
+            background: rgba(218, 54, 51, 0.1);
+            color: var(--danger);
+            border: none;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: grid;
+            place-content: center;
+            transition: 0.2s;
+        }
+        .btn-remove:hover { background: var(--danger); color: #fff; }
+
+        .carrito-footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .btn-accion-principal {
+            width: 100%;
+            padding: 18px;
+            border-radius: var(--radius);
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: none;
+            transition: 0.3s;
+        }
+
+        .btn-cobrar { background: var(--primary); color: #fff; }
+        .btn-cobrar:hover { background: var(--primary-hover); transform: scale(1.02); }
+        .btn-cobrar:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* --- MODAL (PESAJE / CONFIRMACION) --- */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(5px);
+            display: none;
+            place-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 450px;
+            padding: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } }
+
+        .modal h2 { margin-bottom: 20px; text-align: center; color: #fff; }
+
+        .peso-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .input-grande {
+            background: var(--bg-header);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-align: center;
+            width: 100%;
+        }
+
+        .input-grande:focus { border-color: var(--primary); }
+
+        .modal-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn-modal {
+            padding: 15px;
+            border-radius: var(--radius);
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-cancelar { background: var(--bg-body); color: var(--text-dim); }
+        .btn-confirmar { background: var(--accent); color: #fff; }
+
+        /* --- STATUS SCANNER --- */
+        .scanner-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--accent);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.8;
+        }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-info">
+            <h1>SISTEMA POS MODERNO</h1>
+            <span>Control de ventas por unidad y peso exacto</span>
+        </div>
+
+        <div class="tabs-categorias" id="tabs-container">
+            <div class="tab active" data-cat="todos">Todos</div>
+            <div class="tab" data-cat="licores">Licores 🍾</div>
+            <div class="tab" data-cat="alimentos">Alimentos 🥖</div>
+            <div class="tab" data-cat="carnes">Carnes 🥩</div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Grilla de Productos -->
+        <div class="productos-grid" id="menu-productos">
+            <!-- Cargando... -->
+        </div>
+
+        <!-- Carrito -->
+        <aside>
+            <div class="carrito-header">
+                <h3>Venta Actual</h3>
+                <span id="items-count">0 items</span>
+            </div>
+
+            <div class="lista-items" id="carrito-items">
+                <!-- Se llenará dinámicamente -->
+            </div>
+
+            <div class="carrito-footer">
+                <div class="total-row">
+                    <span>Total</span>
+                    <span id="total-monto">$0.00</span>
+                </div>
+                <button id="btn-procesar" class="btn-accion-principal btn-cobrar" disabled onclick="POS.abrirConfirmacion()">
+                    PROCESAR VENTA
+                </button>
+            </div>
+        </aside>
+    </main>
+
+    <!-- MODAL DE PESAJE -->
+    <div class="overlay" id="overlay-peso">
+        <div class="modal">
+            <h2>Ingresar Peso (kg)</h2>
+            <p id="peso-item-nombre" style="text-align: center; color: var(--text-dim);"></p>
+            
+            <div class="peso-input-container">
+                <input type="number" id="input-peso" class="input-grande" step="0.001" placeholder="0.000" autofocus>
+                <p style="text-align: center; font-size: 0.8rem; color: var(--text-dim);">Formato: 0.850 para 850 gramos</p>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-modal btn-cancelar" onclick="POS.cerrarModalPeso()">CANCELAR</button>
+                <button class="btn-modal btn-confirmar" onclick="POS.agregarItemPesado()">OK - AGREGAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN FINAL -->
+    <div class="overlay" id="overlay-confirmar">
+        <div class="modal">
+            <div style="text-align: center; margin-bottom: 20px; font-size: 3rem;">🛍️</div>
+            <h2>¿Confirmar Venta?</h2>
+            <p style="text-align: center; color: var(--text-dim);">Se generará la factura y se descontará el stock de inventario automáticamente.</p>
+            
+            <div id="resumen-confirmacion" style="margin-top:20px; background:var(--bg-header); padding:15px; border-radius:8px;"></div>
+
+            <div class="modal-buttons">
+                <button class="btn-modal btn-cancelar" onclick="POS.cerrarConfirmacion()">VOLVER</button>
+                <button class="btn-modal btn-confirmar" id="btn-finalizar-venta" onclick="POS.procesarVentaFinal()">SÍ, PROCESAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="scanner-status">
+        <span style="width:8px; height:8px; background:#fff; border-radius:50%; display:inline-block; animation: pulse 1.5s infinite;"></span>
+        LECTOR DE BARRAS ACTIVO
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="assets/js/supabase-client.js"></script>
+    <script src="assets/js/notificaciones.js"></script>
+    <script>
+        /**
+         * LÓGICA DE PUNTO DE VENTA (POS)
+         * Manejo de balanza, escáner e inventario dinámico.
+         */
+        const POS = {
+            inventario: [],
+            carrito: [],
+            categoriaFiltro: 'todos',
+            bufferScanner: "",
+            timeoutScanner: null,
+
+            async init() {
+                this.renderTabs();
+                await this.cargarInventario();
+                this.setupBarcodeScanner();
+                this.setupEnterOnInputs();
+                console.log("POS Initialized 🚀");
+            },
+
+            // --- CARGAR DATOS ---
+            async cargarInventario() {
+                const grid = document.getElementById('menu-productos');
+                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center;">Cargando inventario...</p>';
+
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('productos_venta')
+                        .select('*')
+                        .order('nombre');
+
+                    if (error) throw error;
+                    this.inventario = data;
+                    this.renderProductos();
+                } catch (e) {
+                    grid.innerHTML = `<p style="color:var(--danger)">Error: ${e.message}</p>`;
+                }
+            },
+
+            // --- FILTRADO Y RENDER ---
+            renderTabs() {
+                const tabs = document.querySelectorAll('.tab');
+                tabs.forEach(t => {
+                    t.onclick = () => {
+                        tabs.forEach(x => x.classList.remove('active'));
+                        t.classList.add('active');
+                        this.categoriaFiltro = t.dataset.cat;
+                        this.renderProductos();
+                    };
+                });
+            },
+
+            renderProductos() {
+                const container = document.getElementById('menu-productos');
+                const products = this.categoriaFiltro === 'todos' 
+                    ? this.inventario 
+                    : this.inventario.filter(p => p.categoria === this.categoriaFiltro);
+
+                container.innerHTML = products.map(p => `
+                    <div class="producto-card" onclick="POS.onSelectProducto(${p.id})">
+                        <span class="producto-emoji">${this.getEmoji(p.categoria)}</span>
+                        <span class="producto-nombre">${p.nombre}</span>
+                        <div class="producto-meta">
+                            <span>S: ${p.stock} ${p.unidad_medida}</span>
+                            ${p.unidad_medida === 'kg' ? '<span class="badge-kg">BALANZA</span>' : ''}
+                        </div>
+                        <div class="producto-precio">$${p.precio_base.toFixed(2)}</div>
+                    </div>
+                `).join('');
+            },
+
+            getEmoji(cat) {
+                const emojis = { licores: '🍾', alimentos: '🥖', carnes: '🥩' };
+                return emojis[cat] || '📦';
+            },
+
+            // --- LÓGICA DE SELECCIÓN ---
+            onSelectProducto(id) {
+                const item = this.inventario.find(p => p.id === id);
+                if (!item) return;
+
+                if (item.unidad_medida === 'unid') {
+                    this.agregarItemCarrito(item, 1);
+                } else {
+                    this.abrirModalPeso(item);
+                }
+            },
+
+            // --- ESCÁNER DE CÓDIGO DE BARRAS (HID SIMULATION) ---
+            setupBarcodeScanner() {
+                window.addEventListener('keydown', (e) => {
+                    // Evitar que capture si el foco está en un input de peso
+                    if (document.activeElement.tagName === 'INPUT') return;
+
+                    clearTimeout(this.timeoutScanner);
+
+                    if (e.key === 'Enter') {
+                        if (this.bufferScanner.length > 0) {
+                            this.procesarCodigoBarras(this.bufferScanner);
+                            this.bufferScanner = "";
+                        }
+                    } else {
+                        // Concatenar solo caracteres alfanuméricos
+                        if (e.key.length === 1) this.bufferScanner += e.key;
+                    }
+
+                    // Limpiar buffer si hay pausas largas (no es escáner)
+                    this.timeoutScanner = setTimeout(() => { this.bufferScanner = ""; }, 50);
+                });
+            },
+
+            procesarCodigoBarras(codigo) {
+                const p = this.inventario.find(x => x.codigo_barras === codigo);
+                if (p) {
+                    this.onSelectProducto(p.id);
+                    Toast.success("Escaneado", `${p.nombre} añadido.`);
+                } else {
+                    Toast.error("Error de Escáner", `Código no encontrado: ${codigo}`);
+                }
+            },
+
+            // --- CARRITO ---
+            itemActualParaPeso: null,
+
+            abrirModalPeso(item) {
+                this.itemActualParaPeso = item;
+                document.getElementById('peso-item-nombre').textContent = item.nombre;
+                document.getElementById('input-peso').value = "";
+                document.getElementById('overlay-peso').style.display = 'grid';
+                setTimeout(() => document.getElementById('input-peso').focus(), 100);
+            },
+
+            cerrarModalPeso() {
+                document.getElementById('overlay-peso').style.display = 'none';
+                this.itemActualParaPeso = null;
+            },
+
+            agregarItemPesado() {
+                const input = document.getElementById('input-peso');
+                const peso = parseFloat(input.value);
+                if (!peso || peso <= 0) return Toast.error("Peso Inválido", "Ingrese un peso mayor a cero.");
+
+                this.agregarItemCarrito(this.itemActualParaPeso, peso);
+                Toast.success("Pesaje Correcto", `${this.itemActualParaPeso.nombre} añadido.`);
+                this.cerrarModalPeso();
+            },
+
+            agregarItemCarrito(producto, cantidad) {
+                // Si es por unidad, verificar si ya existe para sumar cantidad
+                if (producto.unidad_medida === 'unid') {
+                    const existente = this.carrito.find(c => c.id === producto.id);
+                    if (existente) {
+                        existente.cantidad += cantidad;
+                        existente.subtotal = existente.cantidad * existente.precio_base;
+                        this.renderCarrito();
+                        return;
+                    }
+                }
+
+                // Si es por KG o nuevo item por unidad
+                const newItem = {
+                    ...producto,
+                    cantidad: cantidad,
+                    subtotal: cantidad * producto.precio_base,
+                    uuid: Date.now() // ID único para el carrito (permite tener carnes pesadas separadas)
+                };
+
+                this.carrito.push(newItem);
+                this.renderCarrito();
+            },
+
+            removerDelCarrito(uuid) {
+                this.carrito = this.carrito.filter(c => c.uuid !== uuid);
+                this.renderCarrito();
+            },
+
+            renderCarrito() {
+                const container = document.getElementById('carrito-items');
+                const count = document.getElementById('items-count');
+                const totalText = document.getElementById('total-monto');
+                const btn = document.getElementById('btn-procesar');
+
+                count.textContent = `${this.carrito.length} items`;
+                
+                let total = 0;
+                container.innerHTML = this.carrito.map(item => {
+                    total += item.subtotal;
+                    const suffix = item.unidad_medida === 'kg' ? 'kg' : 'uds';
+                    return `
+                        <div class="item-carrito">
+                            <div class="item-info">
+                                <h4>${item.nombre}</h4>
+                                <span>$${item.precio_base.toFixed(2)} / ${item.unidad_medida}</span>
+                            </div>
+                            <div class="item-cantidad">${item.cantidad.toFixed(item.unidad_medida === 'kg' ? 3 : 0)} ${suffix}</div>
+                            <button class="btn-remove" onclick="POS.removerDelCarrito(${item.uuid})">✕</button>
+                        </div>
+                    `;
+                }).join('');
+
+                totalText.textContent = `$${total.toFixed(2)}`;
+                btn.disabled = this.carrito.length === 0;
+            },
+
+            // --- PROCESAR VENTA ---
+            abrirConfirmacion() {
+                const resumen = document.getElementById('resumen-confirmacion');
+                const total = this.carrito.reduce((acc, curr) => acc + curr.subtotal, 0);
+                
+                resumen.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <span>Total Artículos:</span>
+                        <b>${this.carrito.length}</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:1.4rem;">
+                        <span>A COBRAR:</span>
+                        <b style="color:var(--primary)">$${total.toFixed(2)}</b>
+                    </div>
+                `;
+                document.getElementById('overlay-confirmar').style.display = 'grid';
+            },
+
+            cerrarConfirmacion() {
+                document.getElementById('overlay-confirmar').style.display = 'none';
+            },
+
+            async procesarVentaFinal() {
+                const btn = document.getElementById('btn-finalizar-venta');
+                btn.disabled = true;
+                btn.textContent = "PROCESANDO...";
+
+                try {
+                    // 1. Guardar registro de la venta en el historial
+                    const totalVenta = this.carrito.reduce((acc, curr) => acc + curr.subtotal, 0);
+                    const itemsSimplificados = this.carrito.map(i => ({
+                        id: i.id,
+                        nombre: i.nombre,
+                        cantidad: i.cantidad,
+                        subtotal: i.subtotal
+                    }));
+
+                    const { error: ventaErr } = await window.supabaseClient
+                        .from('ventas_pos')
+                        .insert({
+                            total: totalVenta,
+                            articulos: itemsSimplificados
+                        });
+
+                    if (ventaErr) throw ventaErr;
+
+                    // 2. Actualizar stock de cada producto y verificar alertas
+                    const alertasLowStock = [];
+
+                    for (const item of this.carrito) {
+                        const { data, error: fetchErr } = await window.supabaseClient
+                            .from('productos_venta')
+                            .select('stock, stock_minimo, nombre')
+                            .eq('id', item.id)
+                            .single();
+
+                        if (fetchErr) throw fetchErr;
+
+                        const nuevoStock = data.stock - item.cantidad;
+
+                        const { error: updateErr } = await window.supabaseClient
+                            .from('productos_venta')
+                            .update({ stock: nuevoStock })
+                            .eq('id', item.id);
+
+                        if (updateErr) throw updateErr;
+
+                        // Verificar si el stock bajó del mínimo
+                        if (nuevoStock <= data.stock_minimo) {
+                            alertasLowStock.push(`${data.nombre} (Quedan: ${nuevoStock.toFixed(3)})`);
+                        }
+                    }
+
+                    if (alertasLowStock.length > 0) {
+                        Toast.warning("Stock Bajo", "Algunos productos están por agotarse.");
+                    }
+
+                    Toast.success("Venta Exitosa", "Venta procesada y registrada correctamente.");
+                    this.carrito = [];
+                    this.renderCarrito();
+                    this.cerrarConfirmacion();
+                    await this.cargarInventario(); // Recarregar para mostrar stock nuevo
+
+                } catch (e) {
+                    alert("Error crítico: " + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "SÍ, PROCESAR";
+                }
+            },
+
+            setupEnterOnInputs() {
+                const inputPeso = document.getElementById('input-peso');
+                inputPeso.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.agregarItemPesado();
+                });
+            }
+        };
+
+        // Iniciar el sistema al cargar
+        window.addEventListener('load', () => POS.init());
+    </script>
+</body>
+</html>

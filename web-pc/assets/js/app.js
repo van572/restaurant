@@ -87,6 +87,14 @@ const AppNotifications = {
     },
 
     show(mensaje, tipo = 'info') {
+        if (typeof Toast !== 'undefined') {
+            if (tipo === 'alerta') Toast.warning("Alerta", mensaje);
+            else if (tipo === 'error') Toast.error("Error", mensaje);
+            else Toast.info("Notificación", mensaje);
+            this.playAlert();
+            return;
+        }
+
         const container = document.getElementById('notification-container');
         if (!container) return;
 
@@ -237,10 +245,11 @@ const CocinaController = {
     async cambiarEstado(id, nuevoEstado) {
         try {
             await DataService.actualizarEstadoPedido(id, nuevoEstado);
+            Toast.success("Estado Actualizado", `Pedido #${id} marcado como ${nuevoEstado}.`);
             await this.cargarYRenderizar();
-        } catch (e) { alert(e.message); }
+        } catch (e) { Toast.error("Error", e.message); }
     }
-};
+}
 
 // ----------------------------------------------------
 // 3. CONTROLADOR DE CAJA (Billing & Checkout)
@@ -345,14 +354,17 @@ const CajaController = {
     async ejecutarCobro(m) {
         if (!this.pedidoSeleccionado) return;
         const total = this.pedidoSeleccionado.total;
-        if (m === 'efectivo' && (parseFloat(document.getElementById('caja-recibido-input').value) || 0) < total) { alert("Monto insuficiente"); return; }
-        if (!confirm("¿Confirmar cobro?")) return;
+        if (m === 'efectivo' && (parseFloat(document.getElementById('caja-recibido-input').value) || 0) < total) { 
+            Toast.error("Error de Cobro", "Monto insuficiente para cubrir el total."); 
+            return; 
+        }
+        if (!confirm("¿Confirmar cobro de " + formatCurrency(total) + "?")) return;
         try {
             await DataService.cobrarsePedido(this.pedidoSeleccionado.id, total, m, this.pedidoSeleccionado.mesero);
-            alert("Venta registrada.");
+            Toast.success("Venta Exitosa", "La cuenta ha sido cerrada y pagada.");
             this.cerrarDetalle();
             await this.cargarYRenderizar();
-        } catch (e) { alert(e.message); }
+        } catch (e) { Toast.error("Error", e.message); }
     }
 };
 
@@ -556,9 +568,9 @@ const AdminMenuController = {
     async toggle(id, d) {
         try {
             await DataService.actualizarDisponibilidadMenu(id, !d);
-            AppNotifications.show(`Disponibilidad actualizada`, 'info');
+            Toast.success("Menú Actualizado", `Disponibilidad cambiada correctamente.`);
             await this.cargar();
-        } catch (e) { alert(e.message); }
+        } catch (e) { Toast.error("Error", e.message); }
     },
     async agregarNuevo() {
         this.mostrarFormulario();
@@ -568,23 +580,23 @@ const AdminMenuController = {
         if (item) this.mostrarFormulario(item);
     },
     async borrar(id) {
-        if (!confirm("¿Seguro que deseas eliminar este platillo del menú? Esta acción no se puede deshacer.")) return;
+        if (!confirm("¿Seguro que deseas eliminar este platillo del menú?")) return;
         try {
             await DataService.eliminarItemMenu(id);
-            AppNotifications.show(`Platillo eliminado`, 'info');
+            Toast.success("Eliminado", "Platillo removido del menú.");
             await this.cargar();
-        } catch (e) { alert(e.message); }
+        } catch (e) { Toast.error("Error", e.message); }
     },
     mostrarFormulario(item = null) {
         const isEditing = !!item;
         const nombre = prompt("Nombre del platillo:", item ? item.nombre : "");
         if (nombre === null) return;
-        if (!nombre.trim()) return alert("El nombre es obligatorio");
+        if (!nombre.trim()) return Toast.error("Faltan datos", "El nombre es obligatorio");
 
         const precio = prompt("Precio:", item ? item.precio : "");
         if (precio === null) return;
         const precioNum = parseFloat(precio);
-        if (isNaN(precioNum)) return alert("El precio debe ser un número");
+        if (isNaN(precioNum)) return Toast.error("Error de Formato", "El precio debe ser un número");
 
         const categoria = prompt("Categoría (COMIDA, BEBIDA, ACOMPAÑAMIENTO, POSTRE):", item ? item.categoria : "COMIDA");
         if (categoria === null) return;
@@ -610,10 +622,10 @@ const AdminMenuController = {
     async guardar(item) {
         try {
             await DataService.guardarItemMenu(item);
-            AppNotifications.show(`Menú actualizado correctamente`, 'info');
+            Toast.success("Guardado", "Platillo actualizado en el menú.");
             await this.cargar();
         } catch (e) {
-            alert("Error al guardar: " + e.message);
+            Toast.error("Error al guardar", e.message);
         }
     }
 };

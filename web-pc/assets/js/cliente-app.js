@@ -202,6 +202,7 @@ function renderMenu() {
 
     // Agrupar por Categoría
     const categorias = [...new Set(state.menu.map(p => p.categoria))];
+    let cardIndex = 0;
     
     categorias.forEach(cat => {
         const section = document.createElement('section');
@@ -222,6 +223,9 @@ function renderMenu() {
             const isAvailable = prod.disponible !== false;
             const card = document.createElement('div');
             card.className = `platillo-card ${isAvailable ? '' : 'agotado'}`;
+            card.style.animationDelay = (cardIndex * 0.08) + 's';
+            cardIndex++;
+            
             if (!isAvailable) {
                 card.style.opacity = '0.6';
                 card.style.filter = 'grayscale(0.8)';
@@ -274,9 +278,8 @@ function addToCart(nombre, precio) {
     }
     
     actualizarBarraCarrito();
-    // Feedback visual breve
-    const addSound = new Audio('https://www.soundjay.com/buttons/button-37.mp3');
-    // addSound.play(); // Opcional
+    // Feedback visual
+    Toast.info("Añadido", `${nombre} al pedido.`);
 }
 
 function actualizarBarraCarrito() {
@@ -401,7 +404,7 @@ async function enviarPedidoCliente() {
             return;
         }
 
-        alert("Error al enviar pedido: " + e.message);
+        Toast.error("Error", e.message);
         state.isSending = false;
         btn.disabled = false;
         btn.innerHTML = 'Enviar pedido a cocina';
@@ -448,9 +451,13 @@ function updateStatusUI(estado) {
 async function solicitarMesa(tipo) {
     try {
         await DataService.crearSolicitud(`Mesa ${state.mesa}`, tipo);
-        alert(tipo === 'cuenta' ? "Petición de cuenta enviada. El cajero te atenderá en breve." : "Mesero notificado. Ya vamos para allá.");
+        if (tipo === 'cuenta') {
+            Toast.success("Cuenta Solicitada", "El cajero te atenderá en breve.");
+        } else {
+            Toast.success("Mesero Llamado", "Un mesero se dirige a tu mesa.");
+        }
     } catch (e) {
-        alert("Error: " + e.message);
+        Toast.error("Error", e.message);
     }
 }
 

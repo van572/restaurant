@@ -9,24 +9,26 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/modals.css">
+    <link rel="stylesheet" href="assets/css/notificaciones.css">
+    <script src="assets/js/notificaciones.js"></script>
     <style>
         :root {
-            --color-bg-base: #0F172A;
-            --color-bg-depth: #1E293B;
-            --color-bg-surface: #334155;
-            --color-primary: #10B981; /* Emerald */
-            --color-secondary: #8B5CF6; /* Violet for auditing highlight */
-            --color-accent: #3B82F6; /* Blue */
-            --color-text-main: #F8FAFC;
-            --color-text-muted: #94A3B8;
-            --color-border: #475569;
-            --color-danger: #EF4444;
-            --color-info: #06B6D4;
+            --color-bg-base: #0f1115;
+            --color-bg-depth: #1c1f26;
+            --color-bg-surface: #252932;
+            --color-primary: #ff6b00;
+            --color-secondary: #ff9c4d;
+            --color-accent: #ffcc00;
+            --color-text-main: #ffffff;
+            --color-text-muted: #aebac1;
+            --color-border: rgba(255, 255, 255, 0.05);
+            --color-danger: #ff4747;
+            --color-info: #00bcd4;
             --font-display: 'Space Grotesk', sans-serif;
             --font-body: 'Plus Jakarta Sans', sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
-            --shadow-custom: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-            --transition-all: all 0.2s ease-in-out;
+            --shadow-custom: 0 20px 40px rgba(0, 0, 0, 0.4);
+            --transition-all: all 0.3s ease-in-out;
         }
 
         * {
@@ -168,6 +170,11 @@
             background-color: rgba(139, 92, 246, 0.05);
         }
 
+        @keyframes pageFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* --- DETALLE CONTENIDO PRINCIPAL --- */
         .auditoria-container {
             display: flex;
@@ -178,6 +185,7 @@
             max-width: 1200px;
             width: 100%;
             margin: 0 auto;
+            animation: pageFadeIn 0.5s ease-out forwards;
         }
 
         /* BANNER DE TITULO E HISTORIAL */

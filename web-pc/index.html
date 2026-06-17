@@ -8,16 +8,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <link rel="stylesheet" href="assets/css/notificaciones.css">
     <style>
         :root {
-            --primary: #FF5C00;
-            --secondary: #1C1E21;
-            --bg: #F8F9FA;
-            --text: #1C1E21;
-            --muted: #65676B;
-            --card-bg: #FFFFFF;
-            --radius: 20px;
-            --shadow: 0 10px 30px rgba(0,0,0,0.06);
+            --primary: #ff6b00;
+            --primary-rgb: 255, 107, 0;
+            --secondary: #ff9c4d;
+            --bg: #0f1115;
+            --card-bg: #1c1f26;
+            --text: #ffffff;
+            --muted: #aebac1;
+            --danger: #ff4747;
+            --success: #00e676;
+            --font: 'Plus Jakarta Sans', sans-serif;
+            --radius-lg: 24px;
+            --radius-md: 16px;
         }
 
         * {
@@ -27,116 +32,221 @@
         }
 
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: var(--font);
             background-color: var(--bg);
             color: var(--text);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            line-height: 1.6;
             min-height: 100vh;
-            padding: 20px;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(var(--primary-rgb), 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(var(--primary-rgb), 0.05) 0%, transparent 40%);
         }
 
         .container {
-            max-width: 1000px;
-            width: 100%;
-            text-align: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
         }
 
         .hero {
-            margin-bottom: 50px;
+            text-align: center;
+            padding: 100px 20px 60px;
+            background-image: linear-gradient(rgba(15, 17, 21, 0.82), rgba(15, 17, 21, 0.98)), url('assets/img/hero_dark_waves.jpg');
+            background-size: cover;
+            background-position: center;
+            border-radius: 0 0 60px 60px;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 107, 0, 0.1);
         }
 
         .hero h1 {
-            font-size: 2.5rem;
-            font-weight: 800;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.8rem;
+            font-weight: 700;
             margin-bottom: 15px;
-            background: linear-gradient(90deg, var(--primary), #FF8A00);
+            background: linear-gradient(135deg, #fff 0%, var(--secondary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            letter-spacing: -2px;
         }
 
         .hero p {
-            font-size: 1.1rem;
-            color: var(--muted);
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 700px;
+            margin: 0 auto 40px;
+            font-weight: 400;
+        }
+
+        .search-wrapper {
+            position: relative;
             max-width: 600px;
             margin: 0 auto;
+            z-index: 10;
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 22px 60px 22px 70px;
+            border-radius: 100px;
+            border: 2px solid rgba(255, 107, 0, 0.1);
+            background: rgba(28, 31, 38, 0.7);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            font-size: 1.1rem;
+            font-family: inherit;
+            color: var(--text);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 15px 45px rgba(255, 107, 0, 0.3);
+            transform: translateY(-4px);
+            background: rgba(28, 31, 38, 0.9);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.8rem;
+            color: var(--primary);
+            pointer-events: none;
+        }
+
+        .clear-icon {
+            position: absolute;
+            right: 25px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            color: var(--muted);
+            cursor: pointer;
+            display: none;
         }
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
         }
 
         .card {
             background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 35px;
-            text-align: left;
+            border-radius: var(--radius-lg);
+            padding: 45px 30px;
             text-decoration: none;
-            color: inherit;
-            box-shadow: var(--shadow);
-            border: 1px solid rgba(0,0,0,0.02);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            align-items: center;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 4px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+            border-radius: 4px 4px 0 0;
         }
 
         .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            border-color: var(--primary);
+            transform: translateY(-12px);
+            border-color: rgba(255, 107, 0, 0.2);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        .card:hover::after {
+            width: 120px;
         }
 
         .card-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 16px;
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            margin-bottom: 5px;
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover .card-icon {
+            transform: scale(1.1) rotate(5deg);
+            color: #fff;
+            background: var(--primary);
         }
 
         .card-title {
-            font-size: 1.4rem;
+            font-size: 1.5rem;
             font-weight: 700;
+            color: var(--text);
+            margin-bottom: 12px;
+            font-family: 'Space Grotesk', sans-serif;
         }
 
         .card-desc {
             font-size: 0.95rem;
             color: var(--muted);
-            line-height: 1.5;
+            margin-bottom: 30px;
+            line-height: 1.6;
         }
 
         .card-badge {
-            align-self: flex-start;
-            padding: 6px 12px;
-            border-radius: 30px;
             font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1.5px;
+            padding: 8px 18px;
+            border-radius: 100px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--muted);
+            transition: all 0.3s;
         }
 
-        /* Var Color Schemes */
-        .caja { background: #E7F3FF; color: #1877F2; }
-        .cocina { background: #FEF2E0; color: #FF9F00; }
-        .auditoria { background: #E6F7ED; color: #00A651; }
-        .cliente { background: #FFEBEE; color: #D32F2F; }
-        .config { background: #F1F3F4; color: #5F6368; }
+        .card:hover .card-badge {
+            background: rgba(255, 107, 0, 0.2);
+            color: var(--primary);
+        }
 
-        .footer {
-            margin-top: 60px;
-            font-size: 0.9rem;
+        #noResults {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            grid-column: 1 / -1;
+            padding: 80px 20px;
             color: var(--muted);
         }
 
-        @media (max-width: 600px) {
-            .hero h1 { font-size: 2rem; }
+        .footer {
+            margin-top: 100px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.8rem; letter-spacing: -1px; }
             .grid { grid-template-columns: 1fr; }
         }
     </style>
@@ -147,52 +257,81 @@
         <header class="hero">
             <h1>Sabor Digital</h1>
             <p>Sistema integral de gestión gastronómica para restaurantes modernos y ágiles.</p>
+            
+            <div class="search-wrapper">
+                <input type="text" id="dashboardSearch" class="search-bar" placeholder="Buscar módulo, función o reporte..." autocomplete="off">
+                <ion-icon name="search-outline" class="search-icon"></ion-icon>
+                <ion-icon name="close-circle" class="clear-icon" id="clearSearch"></ion-icon>
+            </div>
         </header>
 
         <main class="grid">
+            <div id="noResults">
+                <ion-icon name="search-outline"></ion-icon>
+                <h3>No se encontraron resultados</h3>
+                <p>Intenta con otros términos o verifica la ortografía.</p>
+            </div>
+            <a href="ventas.html" class="card">
+                <div class="card-icon">
+                    <ion-icon name="scale-outline"></ion-icon>
+                </div>
+                <div class="card-title">Ventas por Peso</div>
+                <p class="card-desc">Control de balanza física para carnes y licores con escaneo de barras.</p>
+                <div class="card-badge">POS Avanzado</div>
+            </a>
+
+            <a href="inventario.html" class="card">
+                <div class="card-icon">
+                    <ion-icon name="cube-outline"></ion-icon>
+                </div>
+                <div class="card-title">Inventario Central</div>
+                <p class="card-desc">Gestión de stock, alertas de reposición y control de precios maestro.</p>
+                <div class="card-badge">Logística</div>
+            </a>
+
             <a href="caja.html" class="card">
-                <div class="card-icon caja">
+                <div class="card-icon">
                     <ion-icon name="cash-outline"></ion-icon>
                 </div>
-                <div class="card-title">Caja y Punto de Venta</div>
-                <p class="card-desc">Gestiona pedidos de meseros, controla cuentas abiertas y realiza cobros rápidos.</p>
-                <div class="card-badge" style="background:#E7F3FF; color:#1877F2;">Administración</div>
+                <div class="card-title">Caja y Facturación</div>
+                <p class="card-desc">Cierre de cuentas, pagos rápidos y reportes de venta diaria.</p>
+                <div class="card-badge">Finanzas</div>
             </a>
 
             <a href="cocina.html" class="card">
-                <div class="card-icon cocina">
+                <div class="card-icon">
                     <ion-icon name="restaurant-outline"></ion-icon>
                 </div>
-                <div class="card-title">Cocina (KDS)</div>
-                <p class="card-desc">Panel de visualización para chefs. Sigue el estado de preparación en tiempo real.</p>
-                <div class="card-badge" style="background:#FEF2E0; color:#FF9F00;">Operaciones</div>
+                <div class="card-title">Monitor de Cocina</div>
+                <p class="card-desc">Control de comandas en tiempo real, tiempos de preparación y avisos.</p>
+                <div class="card-badge">Operaciones</div>
             </a>
 
             <a href="cliente.html" class="card">
-                <div class="card-icon cliente">
+                <div class="card-icon">
                     <ion-icon name="qr-code-outline"></ion-icon>
                 </div>
-                <div class="card-title">Auto-pedido (Cliente)</div>
-                <p class="card-desc">Vista del comensal. Permite armar el carrito y enviar pedidos directamente a cocina.</p>
-                <div class="card-badge" style="background:#FFEBEE; color:#D32F2F;">Cliente</div>
+                <div class="card-title">Auto-pedido</div>
+                <p class="card-desc">Menú digital interactivo para pedir desde la mesa mediante QR.</p>
+                <div class="card-badge">Customer UX</div>
             </a>
 
             <a href="auditoria.html" class="card">
-                <div class="card-icon auditoria">
+                <div class="card-icon">
                     <ion-icon name="trending-up-outline"></ion-icon>
                 </div>
                 <div class="card-title">Auditoría Financiera</div>
-                <p class="card-desc">Consulta el historial de ventas, ingresos del día y logs de transacciones registradas.</p>
-                <div class="card-badge" style="background:#E6F7ED; color:#00A651;">Reportes</div>
+                <p class="card-desc">Historial completo de acciones, cancelaciones y seguridad del sistema.</p>
+                <div class="card-badge">Seguridad</div>
             </a>
 
             <a href="configuracion.html" class="card">
-                <div class="card-icon config">
+                <div class="card-icon">
                     <ion-icon name="settings-outline"></ion-icon>
                 </div>
-                <div class="card-title">Configuración QR</div>
-                <p class="card-desc">Genera y descarga etiquetas de códigos QR para las mesas de tu restaurante.</p>
-                <div class="card-badge" style="background:#F1F3F4; color:#5F6368;">Sistema</div>
+                <div class="card-title">Configuración</div>
+                <p class="card-desc">Ajustes del sistema, gestión de mesas y generación de códigos QR.</p>
+                <div class="card-badge">Sistema</div>
             </a>
         </main>
 
@@ -200,6 +339,65 @@
             <p>&copy; 2024 Sabor Digital - Potenciado por Supabase & AI</p>
         </footer>
     </div>
+
+    <script src="assets/js/notificaciones.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('dashboardSearch');
+            const clearIcon = document.getElementById('clearSearch');
+            const noResults = document.getElementById('noResults');
+            const cards = document.querySelectorAll('.card');
+
+            const filterCards = (term) => {
+                term = term.toLowerCase().trim();
+                let visibleCount = 0;
+
+                cards.forEach((card, index) => {
+                    const title = card.querySelector('.card-title').textContent.toLowerCase();
+                    const desc = card.querySelector('.card-desc').textContent.toLowerCase();
+                    const badge = card.querySelector('.card-badge').textContent.toLowerCase();
+
+                    if (title.includes(term) || desc.includes(term) || badge.includes(term)) {
+                        card.classList.remove('hidden-card');
+                        // Stagger the showing animation
+                        setTimeout(() => {
+                            card.classList.remove('fade-out');
+                        }, 50);
+                        visibleCount++;
+                    } else {
+                        card.classList.add('fade-out');
+                        setTimeout(() => {
+                            if (card.classList.contains('fade-out')) {
+                                card.classList.add('hidden-card');
+                            }
+                        }, 300);
+                    }
+                });
+
+                // Update UI state
+                clearIcon.style.display = term.length > 0 ? 'block' : 'none';
+                noResults.style.display = visibleCount === 0 ? 'flex' : 'none';
+            };
+
+            searchInput.addEventListener('input', (e) => {
+                filterCards(e.target.value);
+            });
+
+            clearIcon.addEventListener('click', () => {
+                searchInput.value = '';
+                filterCards('');
+                searchInput.focus();
+            });
+
+            // Focus search on '/' key
+            window.addEventListener('keydown', (e) => {
+                if (e.key === '/' && document.activeElement !== searchInput) {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
+        });
+    </script>
 
 </body>
 </html>
