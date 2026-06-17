@@ -66,8 +66,11 @@ const AppNotifications = {
     },
 
     playAlert() {
+        // Intentar beep sintetizado primero (más confiable y "atencional")
+        this.playBeep(440, 0.15); // La natural
+        setTimeout(() => this.playBeep(554.37, 0.2), 150); // Do sostenido (acorde mayor alegre)
+
         if (!this.isInitialized || !this.audioBuffer) {
-            // Fallback al elemento audio estático si falla la Web Audio API
             const audio = document.getElementById('notification-sound');
             if (audio) {
                 audio.currentTime = 0;
@@ -84,6 +87,34 @@ const AppNotifications = {
         source.buffer = this.audioBuffer;
         source.connect(this.audioCtx.destination);
         source.start(0);
+    },
+
+    playBeep(frecuencia, duracion) {
+        if (!this.audioCtx) {
+            try {
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch(e) { return; }
+        }
+        
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+
+        const oscillator = this.audioCtx.createOscillator();
+        const gainNode = this.audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frecuencia;
+        
+        gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, this.audioCtx.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + duracion);
+
+        oscillator.start(this.audioCtx.currentTime);
+        oscillator.stop(this.audioCtx.currentTime + duracion);
     },
 
     show(mensaje, tipo = 'info') {
