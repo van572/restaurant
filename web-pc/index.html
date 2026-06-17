@@ -9,6 +9,10 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <link rel="stylesheet" href="assets/css/notificaciones.css">
+    <!-- Driver.js for Interactive Tour -->
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+
     <style>
         :root {
             --primary: #ff6b00;
@@ -258,7 +262,7 @@
             <h1>Sabor Digital</h1>
             <p>Sistema integral de gestión gastronómica para restaurantes modernos y ágiles.</p>
             
-            <div class="search-wrapper">
+            <div class="search-wrapper" id="step-search">
                 <input type="text" id="dashboardSearch" class="search-bar" placeholder="Buscar módulo, función o reporte..." autocomplete="off">
                 <ion-icon name="search-outline" class="search-icon"></ion-icon>
                 <ion-icon name="close-circle" class="clear-icon" id="clearSearch"></ion-icon>
@@ -280,7 +284,7 @@
                 <div class="card-badge">POS Avanzado</div>
             </a>
 
-            <a href="inventario.html" class="card">
+            <a href="inventario.html" class="card" id="step-inventory">
                 <div class="card-icon">
                     <ion-icon name="cube-outline"></ion-icon>
                 </div>
@@ -289,7 +293,7 @@
                 <div class="card-badge">Logística</div>
             </a>
 
-            <a href="caja.html" class="card">
+            <a href="caja.html" class="card" id="step-pos">
                 <div class="card-icon">
                     <ion-icon name="cash-outline"></ion-icon>
                 </div>
@@ -307,7 +311,7 @@
                 <div class="card-badge">Operaciones</div>
             </a>
 
-            <a href="cliente.html" class="card">
+            <a href="cliente.html" class="card" id="step-client">
                 <div class="card-icon">
                     <ion-icon name="qr-code-outline"></ion-icon>
                 </div>
@@ -396,6 +400,62 @@
                     searchInput.focus();
                 }
             });
+
+            // --- TOUR INTERACTIVO ---
+            const driver = window.driver.js.driver;
+            const driverObj = driver({
+                showProgress: true,
+                nextBtnText: 'Siguiente',
+                prevBtnText: 'Anterior',
+                doneBtnText: 'Finalizar',
+                steps: [
+                    { 
+                        element: '#step-search', 
+                        popover: { 
+                            title: 'Búsqueda Inteligente 🔍', 
+                            description: 'Encuentra cualquier módulo o producto al instante. Presiona "/" en cualquier momento para activar.',
+                            side: "bottom", 
+                            align: 'start' 
+                        } 
+                    },
+                    { 
+                        element: '#step-inventory', 
+                        popover: { 
+                            title: 'Control de Inventario 📦', 
+                            description: 'Gestiona tu stock en tiempo real con alertas automáticas de reposición.',
+                            side: "top", 
+                            align: 'start' 
+                        } 
+                    },
+                    { 
+                        element: '#step-client', 
+                        popover: { 
+                            title: 'Auto-pedido y Pago Móvil 📲', 
+                            description: 'Aquí los clientes pueden pedir desde su mesa y ahora reportar sus pagos por Pago Móvil de forma segura.',
+                            side: "top", 
+                            align: 'start' 
+                        } 
+                    },
+                    { 
+                        element: '#step-pos', 
+                        popover: { 
+                            title: 'Caja y Verificación 💰', 
+                            description: 'Desde aquí validas las referencias de Pago Móvil que envían los clientes en tiempo real.',
+                            side: "top", 
+                            align: 'start' 
+                        } 
+                    }
+                ]
+            });
+
+            // Verificar si el usuario es nuevo para iniciar el tour
+            const hasSeenTour = localStorage.getItem('hasSeenDashboardTour');
+            if (!hasSeenTour) {
+                setTimeout(() => {
+                    driverObj.drive();
+                    localStorage.setItem('hasSeenDashboardTour', 'true');
+                }, 1000); // Pequeño delay para que todo cargue bien
+            }
         });
     </script>
 

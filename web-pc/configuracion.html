@@ -222,10 +222,123 @@
             </div>
             <div id="qr-grid" class="qr-grid"></div>
         </div>
+
+        <!-- SECCIÓN: CONFIGURACIÓN DE PAGO MÓVIL COMERCIO -->
+        <div class="card">
+            <div class="header" style="margin-bottom: 20px;">
+                <ion-icon name="phone-portrait-outline" style="font-size: 1.5rem; color: var(--primary);"></ion-icon>
+                <h2 style="font-size: 1.2rem;">Datos Pago Móvil del Comercio</h2>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+                Estos datos se mostrarán a tus clientes cuando elijan pagar por Pago Móvil.
+            </p>
+            
+            <div class="form-group">
+                <label>Banco del Comercio</label>
+                <input type="text" id="admin-pm-banco" placeholder="Ej: BANESCO (0134)">
+            </div>
+            
+            <div class="form-group">
+                <label>RIF del Comercio</label>
+                <input type="text" id="admin-pm-rif" placeholder="Ej: J-50123456-7">
+            </div>
+            
+            <div class="form-group">
+                <label>Teléfono Destino</label>
+                <input type="text" id="admin-pm-telefono" placeholder="Ej: 04121234567">
+            </div>
+
+            <button class="btn-generate" onclick="guardarPagoMovil()">
+                <ion-icon name="save-outline"></ion-icon>
+                Actualizar Datos de Pago
+            </button>
+        </div>
+
+        <!-- SECCIÓN: SEGURIDAD Y CONTRASEÑAS -->
+        <div class="card">
+            <div class="header" style="margin-bottom: 20px;">
+                <ion-icon name="lock-closed-outline" style="font-size: 1.5rem; color: #8b5cf6;"></ion-icon>
+                <h2 style="font-size: 1.2rem;">Control de Acceso y Contraseñas</h2>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+                Configura las claves de acceso para proteger los módulos administrativos.
+            </p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label>Contraseña CAJA</label>
+                    <input type="password" id="pass-caja" placeholder="Por defecto: 1234">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña INVENTARIO</label>
+                    <input type="password" id="pass-inventario" placeholder="Por defecto: admin">
+                </div>
+            </div>
+
+            <button class="btn-generate" style="background: #8b5cf6;" onclick="guardarPasswords()">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                Guardar Nuevas Contraseñas
+            </button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/supabase-client.js"></script>
+    <script src="assets/js/auth-guard.js" data-module="config"></script>
     <script src="assets/js/qr-generator.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Cargar datos actuales
+                const pm = await DataService.getSettings('pago_movil');
+                if (pm) {
+                    document.getElementById('admin-pm-banco').value = pm.banco;
+                    document.getElementById('admin-pm-rif').value = pm.rif;
+                    document.getElementById('admin-pm-telefono').value = pm.telefono;
+                }
+
+                const pass = await DataService.getSettings('passwords');
+                if (pass) {
+                    document.getElementById('pass-caja').value = pass.caja;
+                    document.getElementById('pass-inventario').value = pass.inventario;
+                }
+            } catch (e) {
+                console.error("Error cargando ajustes:", e);
+            }
+        });
+
+        async function guardarPagoMovil() {
+            const banco = document.getElementById('admin-pm-banco').value.trim();
+            const rif = document.getElementById('admin-pm-rif').value.trim();
+            const telefono = document.getElementById('admin-pm-telefono').value.trim();
+
+            if (!banco || !rif || !telefono) {
+                return Toast.error("Faltan datos", "Todos los campos de Pago Móvil son obligatorios.");
+            }
+
+            try {
+                await DataService.saveSettings('pago_movil', { banco, rif, telefono });
+                Toast.success("Ajustes Guardados", "Los datos de Pago Móvil se actualizaron correctamente.");
+            } catch (e) {
+                Toast.error("Error al guardar", e.message);
+            }
+        }
+
+        async function guardarPasswords() {
+            const caja = document.getElementById('pass-caja').value.trim();
+            const inventario = document.getElementById('pass-inventario').value.trim();
+
+            if (!caja || !inventario) {
+                return Toast.error("Faltan datos", "Las contraseñas no pueden estar vacías.");
+            }
+
+            try {
+                await DataService.saveSettings('passwords', { caja, inventario, config: 'root' });
+                Toast.success("Seguridad Actualizada", "Las contraseñas de acceso han sido cambiadas.");
+            } catch (e) {
+                Toast.error("Error al guardar", e.message);
+            }
+        }
+    </script>
 </body>
 </html>

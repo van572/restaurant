@@ -146,7 +146,12 @@ const DataService = {
             mesero: pedidoCustom.mesero || "Cliente QR",
             items: pedidoCustom.items,
             total: parseFloat(pedidoCustom.total),
-            estado: 'pendiente'
+            estado: 'pendiente',
+            metodo_pago: pedidoCustom.metodo_pago || 'efectivo',
+            pago_referencia: pedidoCustom.pago_referencia || null,
+            pago_telefono: pedidoCustom.pago_telefono || null,
+            pago_banco: pedidoCustom.pago_banco || null,
+            estado_pago: pedidoCustom.estado_pago || 'pendiente'
         };
 
         const { data, error } = await supabaseClient.from('pedidos').insert([payload]).select();
@@ -163,6 +168,38 @@ const DataService = {
         const { data, error } = await supabaseClient.from('pedidos').update({ estado: nuevoEstado }).eq('id', id).select();
         if (error) throw error;
         return data[0];
+    },
+
+    async actualizarEstadoPago(id, nuevoEstadoPago) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { data, error } = await supabaseClient.from('pedidos').update({ estado_pago: nuevoEstadoPago }).eq('id', id).select();
+        if (error) throw error;
+        return data[0];
+    },
+
+    async getSettings(clave) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { data, error } = await supabaseClient.from('ajustes').select('valor').eq('clave', clave).single();
+        if (error) throw error;
+        return data.valor;
+    },
+
+    async saveSettings(clave, valor) {
+        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const { data, error } = await supabaseClient.from('ajustes').upsert({ clave, valor, actualizado_en: new Date() }).select();
+        if (error) throw error;
+        return data[0];
+    },
+
+    async checkPassword(modulo, passwordBruto) {
+        if (!isRealSupabase) return true; // Bypass si no hay supabase para pruebas
+        try {
+            const passData = await this.getSettings('passwords');
+            if (!passData) return true; // Sin pass configurada
+            return passData[modulo] === passwordBruto;
+        } catch (e) {
+            return false;
+        }
     },
 
     async cobrarsePedido(idPedido, monto, metodoPago, mesero) {

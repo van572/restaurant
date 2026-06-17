@@ -52,6 +52,9 @@ async function initApp() {
     // Cargar Menú
     await cargarMenu();
 
+    // Cargar datos de Pago Movil
+    cargarAjustesPago();
+
     // Sincronizar conexión Supabase UI
     const conn = await DataService.checkConnection();
     console.log("Supabase Connection Status:", conn.message);
@@ -142,6 +145,20 @@ async function cargarMenu() {
                 <button class="confirm-btn" style="margin-top: 20px;" onclick="location.reload()">Reintentar</button>
             </div>
         `;
+    }
+}
+
+async function cargarAjustesPago() {
+    try {
+        const pm = await DataService.getSettings('pago_movil');
+        if (pm) {
+            document.getElementById('pm-info-banco').textContent = pm.banco;
+            document.getElementById('pm-info-rif').textContent = `RIF: ${pm.rif}`;
+            document.getElementById('pm-info-telefono').textContent = pm.telefono;
+        }
+    } catch (e) {
+        console.error("No se pudieron cargar los datos de pago:", e);
+        // Fallback or leave defaults
     }
 }
 
@@ -412,6 +429,92 @@ async function enviarPedidoCliente() {
 }
 
 // 5. NUEVA LOGICA DE SEGUIMIENTO Y SERVICIOS
+// 5. NUEVA LOGICA DE SEGUIMIENTO Y SERVICIOS
+function openPagoMovil() {
+    if (state.carrito.length === 0) {
+        Toast.info("Carrito vacío", "Agrega algunos platillos antes de pagar.");
+        openCart();
+        return;
+    }
+    document.getElementById('pm-modal').style.display = 'flex';
+}
+
+function closePagoMovil() {
+    document.getElementById('pm-modal').style.display = 'none';
+}
+
+async function confirmarPagoMovil() {
+    const banco = document.getElementById('pm-banco').value;
+    const telefono = document.getElementById('pm-telefono').value.trim();
+    const referencia = document.getElementById('pm-referencia').value.trim();
+
+    // Validaciones estrictas anti-error de dedo
+    if (!banco) return Toast.error("Faltan datos", "Selecciona el banco emisor.");
+    if (telefono.length < 10) return Toast.error("Teléfono inválido", "Ingresa un número de teléfono válido.");
+    if (referencia.length < 4) return Toast.error("Referencia incompleta", "Ingresa al menos los últimos 4 dígitos.");
+
+    if (!confirm("¿Confirmar envío de datos de pago?")) return;
+
+    state.isSending = true;
+    const total = state.carrito.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
+    
+    // Preparar payload con metadatos de pago
+    const pedidoData = {
+        mesa: `Mesa ${state.mesa}`,
+        mesero: "Cliente QR (Pago Móvil)",
+        items: state.carrito,
+        total: total,
+        metodo_pago: 'pago_movil',
+        pago_referencia: referencia,
+        pago_telefono: telefono,
+        pago_banco: banco,
+        estado_pago: 'pendiente'
+    };
+
+    try {
+        const response = await DataService.crearPedido(pedidoData);
+        if (response && response.id) {
+            state.activeOrderId = response.id;
+            sessionStorage.setItem('active_order_id', response.id);
+            
+            // Mostrar pantalla de espera y cerrar modal
+            closePagoMovil();
+            closeCart();
+            document.getElementById('pm-wait-screen').style.display = 'flex';
+            
+            // Escuchar aprobación en tiempo real
+            startTrackingPagoMovil(response.id);
+        }
+    } catch (e) {
+        Toast.error("Error al procesar", e.message);
+        state.isSending = false;
+    }
+}
+
+function startTrackingPagoMovil(orderId) {
+    DataService.suscribirAPedidos((payload) => {
+        if (payload.new && payload.new.id == orderId) {
+            // Si el estado_pago cambia
+            if (payload.new.estado_pago === 'aprobado') {
+                document.getElementById('pm-wait-message').innerHTML = 
+                    "<span style='color:var(--success); font-weight:800;'>¡PAGO APROBADO!</span><br>Ya puedes retirar tu factura en caja.";
+                setTimeout(() => {
+                    document.getElementById('pm-wait-screen').style.display = 'none';
+                    showSuccess();
+                }, 3000);
+            } else if (payload.new.estado_pago === 'rechazado') {
+                document.getElementById('pm-wait-screen').style.display = 'none';
+                Toast.error("Pago Rechazado", "La caja no pudo validar tu referencia. Por favor intentalo de nuevo.");
+                openPagoMovil();
+            }
+        }
+    });
+}
+
+window.openPagoMovil = openPagoMovil;
+window.closePagoMovil = closePagoMovil;
+window.confirmarPagoMovil = confirmarPagoMovil;
+
 function startTrackingOrder(orderId) {
     console.log("📍 Siguiendo pedido:", orderId);
     DataService.suscribirAPedidos((payload) => {

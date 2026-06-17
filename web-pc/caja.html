@@ -30,6 +30,108 @@
             --transition-all: all 0.3s ease-in-out;
         }
 
+        /* ESTILOS PAGO MOVIL CAJA */
+        .pm-alert-card {
+            border: 2px solid var(--color-primary) !important;
+            animation: pmPulse 2s infinite;
+        }
+
+        @keyframes pmPulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 107, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0); }
+        }
+
+        .pm-badge-blink {
+            background: var(--color-primary);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: inline-block;
+            animation: blinker 1s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0.5; }
+        }
+
+        .pm-conciliacion-box {
+            background: var(--color-bg-base);
+            padding: 20px;
+            border-radius: 16px;
+            margin: 20px 0;
+            border: 1px solid var(--color-primary);
+        }
+
+        .pm-conciliacion-box h4 {
+            color: var(--color-primary);
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pm-data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .pm-data-grid small {
+            color: var(--color-text-muted);
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .pm-data-grid p {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .ref-highlight {
+            font-family: var(--font-mono);
+            color: var(--color-accent);
+            font-size: 1.2rem !important;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .btn-approve:hover, .btn-reject:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -635,6 +737,9 @@
                     </div>
                 </div>
 
+                <!-- AREA CONCILIACION PAGO MOVIL -->
+                <div id="pm-conciliacion-area" style="display: none; padding: 0 24px;"></div>
+
                 <div class="factura-footer">
                     <!-- Resumen del Total -->
                     <div class="total-pay-box">
@@ -717,6 +822,7 @@
     <!-- DATOS Y LOGICA COMPARTIDA -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/supabase-client.js"></script>
+    <script src="assets/js/auth-guard.js" data-module="caja"></script>
     <script src="assets/js/app.js"></script>
     <script src="assets/js/realtime-listeners.js"></script>
 

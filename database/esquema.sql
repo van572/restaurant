@@ -17,9 +17,28 @@ CREATE TABLE IF NOT EXISTS public.pedidos (
     items JSONB NOT NULL,
     total NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     estado VARCHAR(50) NOT NULL DEFAULT 'pendiente',
+    -- Columnas para Flujo de Pago Móvil
+    metodo_pago VARCHAR(50) DEFAULT 'efectivo',
+    pago_referencia VARCHAR(100),
+    pago_telefono VARCHAR(50),
+    pago_banco VARCHAR(100),
+    estado_pago VARCHAR(50) DEFAULT 'pendiente',
     creado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- TABLA DE AJUSTES GLOBALES
+CREATE TABLE IF NOT EXISTS ajustes (
+    clave TEXT PRIMARY KEY,
+    valor JSONB,
+    actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Insertar valores iniciales si no existen
+INSERT INTO ajustes (clave, valor) VALUES 
+('pago_movil', '{"banco": "BANESCO (0134)", "rif": "J-50123456-7", "telefono": "04121234567"}'),
+('passwords', '{"caja": "1234", "inventario": "admin", "config": "root"}')
+ON CONFLICT (clave) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.auditoria_financiera (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

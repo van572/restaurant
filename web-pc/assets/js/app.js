@@ -295,12 +295,20 @@ const CajaController = {
             return;
         }
         this.pedidos.forEach(p => {
+            const isPagoMovilPendiente = p.metodo_pago === 'pago_movil' && p.estado_pago === 'pendiente';
             const div = document.createElement('div');
-            div.className = `mesa-caja-card state-${p.estado} ${this.pedidoSeleccionado && this.pedidoSeleccionado.id === p.id ? 'mesa-activa' : ''}`;
+            div.className = `mesa-caja-card state-${p.estado} ${this.pedidoSeleccionado && this.pedidoSeleccionado.id === p.id ? 'mesa-activa' : ''} ${isPagoMovilPendiente ? 'pm-alert-card' : ''}`;
             div.onclick = () => this.verDetalle(p.id);
             div.innerHTML = `
-                <div class="caja-mesa-header"><span class="mesa-tag-number">${p.mesa}</span><span class="mesa-estado-pill border-${p.estado}">${p.estado.toUpperCase()}</span></div>
-                <div class="caja-mesa-body"><p class="caja-mesa-mesero">Mesero: ${p.mesero}</p><p class="caja-mesa-monto">${formatCurrency(p.total)}</p></div>
+                <div class="caja-mesa-header">
+                    <span class="mesa-tag-number">${p.mesa}</span>
+                    <span class="mesa-estado-pill border-${p.estado}">${p.estado.toUpperCase()}</span>
+                </div>
+                <div class="caja-mesa-body">
+                    ${isPagoMovilPendiente ? '<div class="pm-badge-blink">⚠️ PAGO MÓVIL POR VERIFICAR</div>' : ''}
+                    <p class="caja-mesa-mesero">Mesero: ${p.mesero}</p>
+                    <p class="caja-mesa-monto">${formatCurrency(p.total)}</p>
+                </div>
             `;
             cont.appendChild(div);
         });
@@ -316,7 +324,53 @@ const CajaController = {
         document.getElementById('cuenta-mesa-titulo').textContent = p.mesa;
         document.getElementById('cuenta-total-resumen').textContent = formatCurrency(p.total);
         document.getElementById('cuenta-items-list').innerHTML = p.items.map(it => `<div class="cuenta-item-line"><span>${it.cantidad}x ${it.producto}</span><span>${formatCurrency(it.precio * it.cantidad)}</span></div>`).join('');
+        
+        // Mostrar Datos de Pago Móvil si existen
+        const areaPago = document.getElementById('pm-conciliacion-area');
+        if (p.metodo_pago === 'pago_movil') {
+            areaPago.style.display = 'block';
+            areaPago.innerHTML = `
+                <div class="pm-conciliacion-box">
+                    <h4>🔍 Conciliación Pago Móvil</h4>
+                    <div class="pm-data-grid">
+                        <div><small>Banco:</small> <p>${p.pago_banco}</p></div>
+                        <div><small>Teléfono:</small> <p>${p.pago_telefono}</p></div>
+                        <div><small>Referencia:</small> <p class="ref-highlight">${p.pago_referencia}</p></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                        <button class="btn-approve" onclick="CajaController.validarPago(${p.id}, 'aprobado')">
+                            <ion-icon name="checkmark-circle"></ion-icon> Aprobar Pago
+                        </button>
+                        <button class="btn-reject" onclick="CajaController.validarPago(${p.id}, 'rechazado')">
+                            <ion-icon name="close-circle"></ion-icon> Rechazar
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            areaPago.style.display = 'none';
+        }
+
         this.calcularSugerenciasCambio(p.total);
+    },
+
+    async validarPago(id, decision) {
+        if (!confirm(`¿Estás seguro de ${decision} este pago?`)) return;
+        try {
+            await DataService.actualizarEstadoPago(id, decision);
+            if (decision === 'aprobado') {
+                const p = this.pedidos.find(ped => ped.id == id);
+                // Si aprobamos el pago, procedemos al cobro definitivo
+                await DataService.cobrarsePedido(id, p.total, 'pago_movil', p.mesero);
+                Toast.success("Pago Aprobado", "Venta registrada exitosamente.");
+            } else {
+                Toast.warning("Pago Rechazado", "Se ha notificado al cliente.");
+            }
+            this.cerrarDetalle();
+            await this.cargarYRenderizar();
+        } catch (e) {
+            Toast.error("Error", e.message);
+        }
     },
 
     cerrarDetalle() {
