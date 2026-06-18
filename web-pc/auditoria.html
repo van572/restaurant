@@ -599,6 +599,23 @@
             </div>
         </section>
 
+        <!-- ZONA DE PELIGRO: LIMPIEZA DE DATOS -->
+        <section style="margin-top: 40px; padding: 25px; background: rgba(239, 68, 68, 0.05); border: 1px dashed rgba(239, 68, 68, 0.3); border-radius: 16px; margin-bottom: 40px;">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <ion-icon name="warning-outline" style="font-size: 1.8rem; color: #ef4444;"></ion-icon>
+                <div>
+                    <h3 style="color: #ef4444; margin: 0; font-size: 1.1rem;">Zona de Peligro: Mantenimiento de Base de Datos</h3>
+                    <p style="margin: 5px 0 0; font-size: 0.85rem; color: var(--color-text-muted);">
+                        Esta acción borrará permanentemente todo el historial financiero y reiniciará el contador de registros (ID) a 1.
+                    </p>
+                </div>
+            </div>
+            <button onclick="confirmarLimpiezaAuditoria()" style="background: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s;">
+                <ion-icon name="trash-bin-outline"></ion-icon>
+                Limpiar Historial y Reiniciar IDs
+            </button>
+        </section>
+
     </main>
 
     <!-- INYECCIÓN COMPARTIDA DE DATOS -->
@@ -636,6 +653,33 @@
         function limpiarFiltrosAuditoria() {
             if (window.AuditoriaController) {
                 window.AuditoriaController.limpiarFiltros();
+            }
+        }
+
+        async function confirmarLimpiezaAuditoria() {
+            const adminPass = prompt("Introduce la contraseña MAESTRA de CONFIGURACIÓN para confirmar esta operación destructiva:");
+            if (!adminPass) return;
+
+            try {
+                // Verificar pass de config
+                const isValid = await DataService.checkPassword('config', adminPass);
+                const isMaster = adminPass === 'root';
+                
+                if (isValid || isMaster) {
+                    const confirmSecond = confirm("¿ESTÁS COMPLETAMENTE SEGURO? Esta acción no se puede deshacer y todos los reportes de ventas se perderán.");
+                    if (!confirmSecond) return;
+
+                    Toast.info("Procesando...", "Limpiando base de datos...");
+                    await DataService.limpiarAuditoria();
+                    Toast.success("Base de Datos Limpia", "El historial ha sido borrado y los IDs reiniciados.");
+                    
+                    // Recargar datos
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    Toast.error("Acceso Denegado", "Contraseña de administrador incorrecta.");
+                }
+            } catch (e) {
+                Toast.error("Error en operación", e.message);
             }
         }
     </script>

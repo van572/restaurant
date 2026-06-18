@@ -190,6 +190,13 @@ const DataService = {
         if (error) throw error;
         return data[0];
     },
+    
+    async limpiarAuditoria() {
+        if (!isRealSupabase) return true;
+        const { error } = await supabaseClient.rpc('limpiar_auditoria_completa');
+        if (error) throw error;
+        return true;
+    },
 
     async checkPassword(modulo, passwordBruto) {
         if (!isRealSupabase) return true; // Bypass si no hay supabase para pruebas

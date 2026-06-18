@@ -40,6 +40,14 @@ INSERT INTO ajustes (clave, valor) VALUES
 ('passwords', '{"caja": "1234", "inventario": "admin", "config": "root"}')
 ON CONFLICT (clave) DO NOTHING;
 
+-- FUNCIÓN PARA LIMPIAR AUDITORÍA Y REINICIAR IDs
+CREATE OR REPLACE FUNCTION limpiar_auditoria_completa()
+RETURNS void AS $$
+BEGIN
+    TRUNCATE TABLE auditoria_financiera RESTART IDENTITY;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 CREATE TABLE IF NOT EXISTS public.auditoria_financiera (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     pedido_id BIGINT NOT NULL,

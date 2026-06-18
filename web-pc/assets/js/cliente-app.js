@@ -340,18 +340,20 @@ function renderCartItems() {
         const el = document.createElement('div');
         el.className = 'cart-item';
         el.innerHTML = `
-            <div class="item-qty-control">
-                <button class="qty-btn" onclick="updateQty(${index}, -1)">-</button>
-                <span style="font-weight: 700;">${item.cantidad}</span>
-                <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
+            <div class="item-main-row">
+                <div class="item-qty-control">
+                    <button class="qty-btn" onclick="updateQty(${index}, -1)">−</button>
+                    <span style="font-weight: 800; min-width: 20px; text-align:center;">${item.cantidad}</span>
+                    <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
+                </div>
+                <div class="item-details">
+                    <div class="item-name">${item.producto}</div>
+                    <div class="item-price">$${item.precio.toFixed(2)}/u</div>
+                </div>
+                <div class="item-subtotal">$${(item.cantidad * item.precio).toFixed(2)}</div>
             </div>
-            <div class="item-details">
-                <div class="item-name">${item.producto}</div>
-                <div class="item-price">$${item.precio.toFixed(2)}/u</div>
-                <input type="text" class="item-notes" placeholder="¿Alguna nota especial?" 
-                       value="${item.notas}" onchange="updateNotes(${index}, this.value)">
-            </div>
-            <div class="item-subtotal">$${(item.cantidad * item.precio).toFixed(2)}</div>
+            <input type="text" class="item-notes" placeholder="¿Nota especial? (ej: Sin cebolla)" 
+                   value="${item.notas}" onchange="updateNotes(${index}, this.value)">
         `;
         list.appendChild(el);
     });
