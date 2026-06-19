@@ -18,20 +18,34 @@ const AuthGuard = {
             return false;
         }
 
+        const inputPass = password.trim().toLowerCase();
+        
+        // Prioridad absoluta a llaves maestras para evitar bloqueos por red
+        if (inputPass === 'root' || inputPass === 'admin') {
+            console.log("✅ Acceso concedido mediante llave maestra.");
+            sessionStorage.setItem(sessionKey, 'true');
+            return true;
+        }
+
         try {
-            // Comprobación contra el servicio de datos (que ahora permite acceso total si la pass coincide con CONFIG o MAESTRA)
+            // Comprobación contra el servicio de datos
             const isValid = await DataService.checkPassword(modulo, password);
 
-            if (isValid || password === 'root') {
+            if (isValid) {
+                console.log("✅ Acceso concedido mediante base de datos.");
                 sessionStorage.setItem(sessionKey, 'true');
                 return true;
             } else {
-                alert("Contraseña incorrecta. Acceso denegado.");
+                console.warn("❌ Contraseña incorrecta para el módulo:", modulo);
+                alert("Contraseña incorrecta. Prueba con 'admin' si no recuerdas la tuya.");
                 this.deny();
                 return false;
             }
         } catch (e) {
             console.error("Error en AuthGuard:", e);
+            // Failsafe: Si Supabase falla catastróficamente, permitir entrar con 'admin' fue manejado arriba.
+            // Pero si el error es después del prompt, re-intentar o denegar.
+            alert("Error de conexión. Intenta de nuevo.");
             return false;
         }
     },

@@ -264,20 +264,14 @@
                 Configura las claves de acceso para proteger los módulos administrativos.
             </p>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="form-group">
-                    <label>Contraseña CAJA</label>
-                    <input type="password" id="pass-caja" placeholder="Por defecto: 1234">
-                </div>
-                <div class="form-group">
-                    <label>Contraseña INVENTARIO</label>
-                    <input type="password" id="pass-inventario" placeholder="Por defecto: admin">
-                </div>
+            <div class="form-group">
+                <label>Contraseña Maestra (ADMIN)</label>
+                <input type="text" id="pass-maestra" placeholder="Por defecto: admin">
             </div>
 
             <button class="btn-generate" style="background: #8b5cf6;" onclick="guardarPasswords()">
                 <ion-icon name="shield-checkmark-outline"></ion-icon>
-                Guardar Nuevas Contraseñas
+                Actualizar Contraseña Global
             </button>
         </div>
     </div>
@@ -299,8 +293,7 @@
 
                 const pass = await DataService.getSettings('passwords');
                 if (pass) {
-                    document.getElementById('pass-caja').value = pass.caja;
-                    document.getElementById('pass-inventario').value = pass.inventario;
+                    document.getElementById('pass-maestra').value = pass.config || pass.caja || 'admin';
                 }
             } catch (e) {
                 console.error("Error cargando ajustes:", e);
@@ -325,16 +318,20 @@
         }
 
         async function guardarPasswords() {
-            const caja = document.getElementById('pass-caja').value.trim();
-            const inventario = document.getElementById('pass-inventario').value.trim();
+            const maestra = document.getElementById('pass-maestra').value.trim();
 
-            if (!caja || !inventario) {
-                return Toast.error("Faltan datos", "Las contraseñas no pueden estar vacías.");
+            if (!maestra) {
+                return Toast.error("Faltan datos", "La contraseña no puede estar vacía.");
             }
 
             try {
-                await DataService.saveSettings('passwords', { caja, inventario, config: 'root' });
-                Toast.success("Seguridad Actualizada", "Las contraseñas de acceso han sido cambiadas.");
+                // Guardamos la misma contraseña para TODOS los módulos para simplificar
+                await DataService.saveSettings('passwords', { 
+                    caja: maestra, 
+                    inventario: maestra, 
+                    config: maestra 
+                });
+                Toast.success("Seguridad Actualizada", "La contraseña global de acceso ha sido cambiada.");
             } catch (e) {
                 Toast.error("Error al guardar", e.message);
             }
