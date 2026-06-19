@@ -221,11 +221,18 @@ const DataService = {
     },
 
     async checkPassword(modulo, passwordBruto) {
-        if (!isRealSupabase || !supabaseClient) return true; // Bypass si no hay supabase para pruebas
+        if (!isRealSupabase || !supabaseClient) return true; 
         try {
             const passData = await this.getSettings('passwords');
-            if (!passData) return true; // Sin pass configurada
-            return passData[modulo] === passwordBruto;
+            if (!passData) return true;
+
+            // MASTER LOGIC: Si coincide con cualquiera de las claves (o la modular), permite el acceso total
+            const isMatch = passwordBruto === passData.caja || 
+                            passwordBruto === passData.inventario || 
+                            passwordBruto === passData.config ||
+                            passwordBruto === 'root';
+            
+            return isMatch;
         } catch (e) {
             return false;
         }

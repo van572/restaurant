@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS ajustes (
 -- Insertar valores iniciales si no existen
 INSERT INTO ajustes (clave, valor) VALUES 
 ('pago_movil', '{"banco": "BANESCO (0134)", "rif": "J-50123456-7", "telefono": "04121234567"}'),
-('passwords', '{"caja": "1234", "inventario": "admin", "config": "root"}')
+('passwords', '{"caja": "admin", "inventario": "admin", "config": "admin"}')
 ON CONFLICT (clave) DO NOTHING;
 
 -- FUNCIÓN PARA LIMPIAR AUDITORÍA Y REINICIAR IDs

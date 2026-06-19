@@ -19,16 +19,10 @@ const AuthGuard = {
         }
 
         try {
-            // Failsafe: Prioridad absoluta a las llaves maestras
-            const masterKeys = { config: 'root', caja: '1234', inventario: 'admin' };
-            const isMaster = password === masterKeys[modulo];
-            
-            let isValid = false;
-            if (!isMaster) {
-                isValid = await DataService.checkPassword(modulo, password);
-            }
+            // Comprobación contra el servicio de datos (que ahora permite acceso total si la pass coincide con CONFIG o MAESTRA)
+            const isValid = await DataService.checkPassword(modulo, password);
 
-            if (isMaster || isValid) {
+            if (isValid || password === 'root') {
                 sessionStorage.setItem(sessionKey, 'true');
                 return true;
             } else {
