@@ -562,7 +562,12 @@ async function solicitarMesa(tipo) {
             Toast.success("Mesero Llamado", "Un mesero se dirige a tu mesa.");
         }
     } catch (e) {
-        Toast.error("Error", e.message);
+        console.error("Error al solicitar mesa:", e);
+        if (e.message && e.message.includes("row-level security")) {
+            Toast.error("Error de Permisos", "Tu base de datos de Supabase no permite enviar alertas. Asegúrate de ejecutar el archivo database/esquema.sql en el SQL Editor de Supabase.");
+        } else {
+            Toast.error("Error", e.message || "No se pudo enviar la solicitud.");
+        }
     }
 }
 
@@ -573,24 +578,42 @@ function showSuccess(isDemo = false) {
     document.getElementById('cart-bar').style.display = 'none';
     const container = document.getElementById('main-content');
     container.innerHTML = `
-        <div class="success-view">
-            <ion-icon name="${isDemo ? 'flask-outline' : 'checkmark-circle'}" style="font-size: 5rem; color: ${isDemo ? 'var(--warning)' : 'var(--success)'}; margin-bottom: 20px;"></ion-icon>
-            <h2 style="margin-bottom: 12px;">${isDemo ? '¡Simulación Enviada!' : '¡Pedido enviado con éxito!'}</h2>
-            <p style="color: var(--text-muted); ${isDemo ? 'font-weight:bold;' : ''} margin-bottom: 30px;">
-                ${isDemo ? '⚠️ ATENCIÓN: El pedido NO se envió a cocina real porque faltan tablas en Supabase. Estás viendo una simulación local.' : 'Estamos preparando tus platillos deliciosos. En un momento te los llevaremos a tu mesa.'}
+        <div class="success-view" style="animation: pageFadeIn 0.8s ease-out forwards;">
+            <div style="background: ${isDemo ? 'rgba(251, 191, 36, 0.1)' : 'rgba(0, 230, 118, 0.1)'}; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px;">
+                <ion-icon name="${isDemo ? 'flask-outline' : 'checkmark-circle'}" style="font-size: 4rem; color: ${isDemo ? '#facc15' : 'var(--success)'};"></ion-icon>
+            </div>
+            
+            <h2 style="margin-bottom: 12px; font-size: 1.8rem; font-weight: 800;">${isDemo ? '¡Simulación Enviada!' : '¡Pedido enviado con éxito!'}</h2>
+            <p style="color: var(--text-muted); ${isDemo ? 'font-weight:bold;' : ''} margin-bottom: 40px; font-size: 1.1rem; line-height: 1.6;">
+                ${isDemo ? '⚠️ ATENCIÓN: El pedido NO se envió a cocina real porque faltan tablas en Supabase. Estás viendo una simulación local.' : 'Estamos preparando tus platillos deliciosos.<br>En un momento te los llevaremos a tu mesa.'}
             </p>
-            <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow);">
-                <p id="status-step-text" style="font-weight: 700; color: var(--primary);">ESTADO: ${isDemo ? 'SIMULANDO PREPARACIÓN 🧪' : 'EN PREPARACIÓN 🥑'}</p>
-                <div style="width: 100%; background: #E2E8F0; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden;">
-                    <div id="status-progress-bar" style="width: 33%; background: var(--primary); height: 100%; transition: width 1s ease;"></div>
+            
+            <div style="background: var(--card-bg); padding: 30px; border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: left; position: relative; overflow: hidden;">
+                <!-- Decoración -->
+                <div style="position: absolute; top: -20px; right: -20px; width: 60px; height: 60px; background: var(--primary); opacity: 0.05; border-radius: 50%;"></div>
+                
+                <p id="status-step-text" style="font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px;">
+                    <ion-icon name="restaurant"></ion-icon>
+                    ESTADO: ${isDemo ? 'SIMULANDO PREPARACIÓN 🧪' : 'EN PREPARACIÓN 🥑'}
+                </p>
+                <div style="width: 100%; background: rgba(255,255,255,0.05); height: 12px; border-radius: 100px; margin-top: 15px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                    <div id="status-progress-bar" style="width: 33%; background: linear-gradient(90deg, var(--primary), #ffa726); height: 100%; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);"></div>
                 </div>
-                <p style="font-size: 0.85rem; margin-top: 12px; color: #64748B;">
-                    ${isDemo ? '<strong>Para corregir esto:</strong> Copia el contenido de <b>database/esquema.sql</b> y ejecútalo en el SQL Editor de tu Supabase.' : 'Si necesitas algo más, puedes volver a escanear el código QR.'}
+                <p style="font-size: 0.9rem; margin-top: 18px; color: var(--text-muted); line-height: 1.5;">
+                    ${isDemo ? '<strong>Para corregir esto:</strong> Copia el contenido de <b>database/esquema.sql</b> y ejecútalo en el SQL Editor de tu Supabase.' : 'Si necesitas algo más, puedes volver a llamar al mesero pulsando el botón de la campana arriba.'}
                 </p>
             </div>
-            <button class="confirm-btn" style="margin-top: 40px; background: var(--text-main);" onclick="location.reload()">
-                ${isDemo ? 'Volver al Menú' : 'Hacer otro pedido'}
-            </button>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 50px;">
+                <button class="confirm-btn" style="background: var(--primary); margin: 0;" onclick="location.reload()">
+                    <ion-icon name="restaurant-outline"></ion-icon>
+                    ${isDemo ? 'Volver al Menú' : 'Hacer otro pedido'}
+                </button>
+                <button class="confirm-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); margin: 0; font-size: 1rem;" onclick="solicitarMesa('mesero')">
+                    <ion-icon name="notifications-outline"></ion-icon>
+                    Llamar al mesero
+                </button>
+            </div>
         </div>
     `;
 }

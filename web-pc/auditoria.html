@@ -622,7 +622,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="assets/js/supabase-client.js"></script>
-    <script src="assets/js/auth-guard.js" data-module="caja"></script>
+    <script src="assets/js/auth-guard.js" data-module="config"></script>
     <script src="assets/js/app.js"></script>
     <script src="assets/js/realtime-listeners.js"></script>
 
@@ -661,11 +661,15 @@
             if (!adminPass) return;
 
             try {
-                // Verificar pass de config
-                const isValid = await DataService.checkPassword('config', adminPass);
+                // Prioridad absoluta a la llave maestra para evitar fallos de red
                 const isMaster = adminPass === 'root';
+                let isValid = false;
+
+                if (!isMaster) {
+                    isValid = await DataService.checkPassword('config', adminPass);
+                }
                 
-                if (isValid || isMaster) {
+                if (isMaster || isValid) {
                     const confirmSecond = confirm("¿ESTÁS COMPLETAMENTE SEGURO? Esta acción no se puede deshacer y todos los reportes de ventas se perderán.");
                     if (!confirmSecond) return;
 

@@ -124,17 +124,17 @@ DROP POLICY IF EXISTS "Permitir inserción pública de pedidos" ON public.pedido
 DROP POLICY IF EXISTS "Permitir actualización pública de pedidos" ON public.pedidos;
 DROP POLICY IF EXISTS "Permitir borrado público de pedidos" ON public.pedidos;
 
-CREATE POLICY "Permitir lectura pública de pedidos" ON public.pedidos FOR SELECT USING (true);
-CREATE POLICY "Permitir inserción pública de pedidos" ON public.pedidos FOR INSERT WITH CHECK (true);
-CREATE POLICY "Permitir actualización pública de pedidos" ON public.pedidos FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir borrado público de pedidos" ON public.pedidos FOR DELETE USING (true);
+CREATE POLICY "Permitir lectura pública de pedidos" ON public.pedidos FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Permitir inserción pública de pedidos" ON public.pedidos FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Permitir actualización pública de pedidos" ON public.pedidos FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir borrado público de pedidos" ON public.pedidos FOR DELETE TO anon, authenticated USING (true);
 
 -- Políticas para 'auditoria_financiera'
 DROP POLICY IF EXISTS "Permitir lectura pública de auditoria" ON public.auditoria_financiera;
 DROP POLICY IF EXISTS "Permitir inserción pública de auditoria" ON public.auditoria_financiera;
 
-CREATE POLICY "Permitir lectura pública de auditoria" ON public.auditoria_financiera FOR SELECT USING (true);
-CREATE POLICY "Permitir inserción pública de auditoria" ON public.auditoria_financiera FOR INSERT WITH CHECK (true);
+CREATE POLICY "Permitir lectura pública de auditoria" ON public.auditoria_financiera FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Permitir inserción pública de auditoria" ON public.auditoria_financiera FOR INSERT TO anon, authenticated WITH CHECK (true);
 
 -- Políticas para 'menu'
 DROP POLICY IF EXISTS "Permitir lectura pública de menú" ON public.menu;
@@ -142,10 +142,10 @@ DROP POLICY IF EXISTS "Permitir inserción pública de menú" ON public.menu;
 DROP POLICY IF EXISTS "Permitir actualización pública de menú" ON public.menu;
 DROP POLICY IF EXISTS "Permitir borrado público de menú" ON public.menu;
 
-CREATE POLICY "Permitir lectura pública de menú" ON public.menu FOR SELECT USING (true);
-CREATE POLICY "Permitir inserción pública de menú" ON public.menu FOR INSERT WITH CHECK (true);
-CREATE POLICY "Permitir actualización pública de menú" ON public.menu FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir borrado público de menú" ON public.menu FOR DELETE USING (true);
+CREATE POLICY "Permitir lectura pública de menú" ON public.menu FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Permitir inserción pública de menú" ON public.menu FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Permitir actualización pública de menú" ON public.menu FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir borrado público de menú" ON public.menu FOR DELETE TO anon, authenticated USING (true);
 
 -- Políticas para 'solicitudes_servicio'
 DROP POLICY IF EXISTS "Permitir lectura pública de solicitudes_servicio" ON public.solicitudes_servicio;
@@ -153,10 +153,10 @@ DROP POLICY IF EXISTS "Permitir inserción pública de solicitudes_servicio" ON 
 DROP POLICY IF EXISTS "Permitir actualización pública de solicitudes_servicio" ON public.solicitudes_servicio;
 DROP POLICY IF EXISTS "Permitir borrado público de solicitudes_servicio" ON public.solicitudes_servicio;
 
-CREATE POLICY "Permitir lectura pública de solicitudes_servicio" ON public.solicitudes_servicio FOR SELECT USING (true);
-CREATE POLICY "Permitir inserción pública de solicitudes_servicio" ON public.solicitudes_servicio FOR INSERT WITH CHECK (true);
-CREATE POLICY "Permitir actualización pública de solicitudes_servicio" ON public.solicitudes_servicio FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir borrado público de solicitudes_servicio" ON public.solicitudes_servicio FOR DELETE USING (true);
+CREATE POLICY "Permitir lectura pública de solicitudes_servicio" ON public.solicitudes_servicio FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Permitir inserción pública de solicitudes_servicio" ON public.solicitudes_servicio FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Permitir actualización pública de solicitudes_servicio" ON public.solicitudes_servicio FOR UPDATE TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir borrado público de solicitudes_servicio" ON public.solicitudes_servicio FOR DELETE TO anon, authenticated USING (true);
 
 -- 6. DATOS INICIALES (SEMILLA) PARA EL MENÚ
 INSERT INTO public.menu (nombre, precio, categoria, descripcion, emoji, disponible)
