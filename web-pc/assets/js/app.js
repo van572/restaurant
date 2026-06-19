@@ -156,28 +156,7 @@ const AppNotifications = {
 // ----------------------------------------------------
 // 0.1 CONTROL DE ACCESO (LOGIN SENCILLO)
 // ----------------------------------------------------
-const AuthManager = {
-    isLoggedIn() {
-        return sessionStorage.getItem('is_admin_auth') === 'true';
-    },
-
-    checkAuth() {
-        if (!this.isLoggedIn()) {
-            this.showLoginPrompt();
-        }
-    },
-
-    showLoginPrompt() {
-        const password = prompt("🔐 Acceso Protegido\nPor favor, ingresa la contraseña maestra para acceder a esta sección:");
-        if (password === 'admin123' || password === 'mesero2026') { 
-            sessionStorage.setItem('is_admin_auth', 'true');
-            location.reload();
-        } else {
-            alert("Contraseña incorrecta. Acceso denegado.");
-            location.href = 'index.html'; 
-        }
-    }
-};
+// --- REMOVED CONFLICTING AUTHMANAGER ---
 
 // ----------------------------------------------------
 // 2. CONTROLADOR DE COCINA (KDS - Kitchen Display System)
@@ -186,7 +165,6 @@ const CocinaController = {
     pedidos: [],
 
     async init() {
-        AuthManager.checkAuth();
         console.log("🥣 Cocina: Cargando órdenes activas...");
         this.renderMenu();
         await this.cargarYRenderizar();
@@ -461,7 +439,6 @@ const AuditoriaController = {
     charts: {},
 
     async init() {
-        AuthManager.checkAuth();
         await this.cargarYVisualizar();
         window.onRealtimeAuditoriaUpdate = async () => { await this.cargarYVisualizar(); };
     },
@@ -722,7 +699,7 @@ window.AuditoriaController = AuditoriaController;
 window.SettingsModal = SettingsModal;
 window.SolicitudesController = SolicitudesController;
 window.AdminMenuController = AdminMenuController;
-window.AuthManager = AuthManager;
+// window.AuthManager = AuthManager;
 window.AppNotifications = AppNotifications;
 
 document.addEventListener('DOMContentLoaded', () => {
