@@ -62,21 +62,43 @@ if (isSupabaseConfigured(activeConfig)) {
             // Asegurar que la URL sea válida antes de crear el cliente
             const validUrl = activeConfig.url.startsWith('http') ? activeConfig.url : `https://${activeConfig.url}`;
             supabaseClient = supabase.createClient(validUrl, activeConfig.anonKey);
-            isRealSupabase = true;
-            console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
+            isRealSupabase = (supabaseClient !== null);
+            if (isRealSupabase) {
+                console.log("✅ Conectado exitosamente al cliente de Supabase Nube.");
+            } else {
+                console.error("❌ Falló la creación del cliente de Supabase.");
+            }
         }
     } catch (err) {
         console.error("❌ Error inicializando Supabase:", err);
         isRealSupabase = false;
+        supabaseClient = null;
     }
 } else {
     console.warn("⚠️ Supabase no configurado. El sistema no funcionará correctamente sin una URL y Key válidas.");
     isRealSupabase = false;
+    supabaseClient = null;
+}
+
+// Helper para validar el cliente antes de cada llamada
+function ensureClient() {
+    if (!isRealSupabase || !supabaseClient) {
+        // Failsafe: intentar re-inicializar si tenemos config pero el cliente es null
+        const cfg = getSupabaseConfig();
+        if (isSupabaseConfigured(cfg) && typeof supabase !== 'undefined') {
+             const validUrl = cfg.url.startsWith('http') ? cfg.url : `https://${cfg.url}`;
+             supabaseClient = supabase.createClient(validUrl, cfg.anonKey);
+             isRealSupabase = (supabaseClient !== null);
+             if (isRealSupabase) return supabaseClient;
+        }
+        throw new Error("Supabase no está configurado o el cliente no se ha inicializado correctamente. (reading 'from')");
+    }
+    return supabaseClient;
 }
 
 // API UNIFICADA DE ACCESO A DATOS (Solo Supabase)
 const DataService = {
-    isReal: () => isRealSupabase,
+    isReal: () => isRealSupabase && !!supabaseClient,
     getConfig: () => getSupabaseConfig(),
     saveConfig: (url, anonKey) => {
         localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify({ url, anonKey }));
@@ -88,7 +110,7 @@ const DataService = {
     },
 
     async checkConnection() {
-        if (!isRealSupabase) return { success: false, message: "Supabase no configurado." };
+        if (!isRealSupabase || !supabaseClient) return { success: false, message: "Supabase no configurado." };
         try {
             const { error } = await supabaseClient.from('pedidos').select('id').limit(1);
             if (error) throw error;
@@ -100,8 +122,8 @@ const DataService = {
     },
 
     async fetchMenu() {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { data, error } = await supabaseClient.from('menu').select('*');
+        const client = ensureClient();
+        const { data, error } = await client.from('menu').select('*');
         if (error) {
             console.error("❌ Error de Supabase al obtener el menú. Verifica las políticas RLS.");
             throw new Error(error.message || error.details || JSON.stringify(error));
@@ -113,16 +135,16 @@ const DataService = {
     },
 
     async fetchPedidos() {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const client = ensureClient();
         
-        let query = supabaseClient.from('pedidos').select('*').neq('estado', 'pagado');
+        let query = client.from('pedidos').select('*').neq('estado', 'pagado');
         
         // Intentar ordenar por creado_en, si falla (porque no existe), intentar por id
         const { data, error } = await query.order('creado_en', { ascending: true });
         
         if (error) {
             console.warn("Fallo ordenando por creado_en, intentando por id:", error.message);
-            const retry = await supabaseClient.from('pedidos').select('*').neq('estado', 'pagado').order('id', { ascending: true });
+            const retry = await client.from('pedidos').select('*').neq('estado', 'pagado').order('id', { ascending: true });
             if (retry.error) {
                 console.error("❌ Error definitivo de Supabase al obtener pedidos:", retry.error);
                 if (retry.error.code === '42P01' || retry.error.message.includes('schema cache')) {
@@ -140,7 +162,7 @@ const DataService = {
     },
 
     async crearPedido(pedidoCustom) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const client = ensureClient();
         const payload = {
             mesa: pedidoCustom.mesa,
             mesero: pedidoCustom.mesero || "Cliente QR",
@@ -154,7 +176,7 @@ const DataService = {
             estado_pago: pedidoCustom.estado_pago || 'pendiente'
         };
 
-        const { data, error } = await supabaseClient.from('pedidos').insert([payload]).select();
+        const { data, error } = await client.from('pedidos').insert([payload]).select();
         if (error) throw error;
         
         if (!data || data.length === 0) {
@@ -164,42 +186,42 @@ const DataService = {
     },
 
     async actualizarEstadoPedido(id, nuevoEstado) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { data, error } = await supabaseClient.from('pedidos').update({ estado: nuevoEstado }).eq('id', id).select();
+        const client = ensureClient();
+        const { data, error } = await client.from('pedidos').update({ estado: nuevoEstado }).eq('id', id).select();
         if (error) throw error;
         return data[0];
     },
 
     async actualizarEstadoPago(id, nuevoEstadoPago) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { data, error } = await supabaseClient.from('pedidos').update({ estado_pago: nuevoEstadoPago }).eq('id', id).select();
+        const client = ensureClient();
+        const { data, error } = await client.from('pedidos').update({ estado_pago: nuevoEstadoPago }).eq('id', id).select();
         if (error) throw error;
         return data[0];
     },
 
     async getSettings(clave) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { data, error } = await supabaseClient.from('ajustes').select('valor').eq('clave', clave).single();
+        const client = ensureClient();
+        const { data, error } = await client.from('ajustes').select('valor').eq('clave', clave).single();
         if (error) throw error;
         return data.valor;
     },
 
     async saveSettings(clave, valor) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { data, error } = await supabaseClient.from('ajustes').upsert({ clave, valor, actualizado_en: new Date() }).select();
+        const client = ensureClient();
+        const { data, error } = await client.from('ajustes').upsert({ clave, valor, actualizado_en: new Date() }).select();
         if (error) throw error;
         return data[0];
     },
     
     async limpiarAuditoria() {
-        if (!isRealSupabase) return true;
-        const { error } = await supabaseClient.rpc('limpiar_auditoria_completa');
+        const client = ensureClient();
+        const { error } = await client.rpc('limpiar_auditoria_completa');
         if (error) throw error;
         return true;
     },
 
     async checkPassword(modulo, passwordBruto) {
-        if (!isRealSupabase) return true; // Bypass si no hay supabase para pruebas
+        if (!isRealSupabase || !supabaseClient) return true; // Bypass si no hay supabase para pruebas
         try {
             const passData = await this.getSettings('passwords');
             if (!passData) return true; // Sin pass configurada
@@ -210,10 +232,10 @@ const DataService = {
     },
 
     async cobrarsePedido(idPedido, monto, metodoPago, mesero) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const client = ensureClient();
         
         // 1. Guardar log financiero
-        const { error: errAud } = await supabaseClient
+        const { error: errAud } = await client
             .from('auditoria_financiera')
             .insert([{
                 pedido_id: idPedido,
@@ -224,7 +246,7 @@ const DataService = {
         if (errAud) throw errAud;
 
         // 2. Marcar pedido como 'pagado'
-        const { data, error: errPed } = await supabaseClient
+        const { data, error: errPed } = await client
             .from('pedidos')
             .update({ estado: 'pagado' })
             .eq('id', idPedido)
@@ -235,9 +257,9 @@ const DataService = {
     },
 
     async fetchAuditoria() {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const client = ensureClient();
         
-        const { data: logs, error: errAud } = await supabaseClient
+        const { data: logs, error: errAud } = await client
             .from('auditoria_financiera')
             .select('*')
             .order('creado_en', { ascending: false });
@@ -246,7 +268,7 @@ const DataService = {
             throw errAud;
         }
 
-        const { data: pedidos, error: errPed } = await supabaseClient
+        const { data: pedidos, error: errPed } = await client
             .from('pedidos')
             .select('id, mesa, items, estado');
         if (errPed) {
@@ -261,7 +283,7 @@ const DataService = {
     },
 
     suscribirAPedidos(onUpdateCallback) {
-        if (!isRealSupabase) return () => {};
+        if (!isRealSupabase || !supabaseClient) return () => {};
         const channel = supabaseClient
             .channel('pedidos-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, (payload) => {
@@ -274,21 +296,21 @@ const DataService = {
     // --- NUEVOS MÉTODOS PARA SOLICITUDES Y GESTIÓN ---
 
     async crearSolicitud(mesa, tipo) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const client = ensureClient();
         const payload = {
             mesa: mesa,
             tipo: tipo, // 'mesero' | 'cuenta'
             estado: 'pendiente',
             creado_en: new Date().toISOString()
         };
-        const { data, error } = await supabaseClient.from('solicitudes_servicio').insert([payload]).select();
+        const { data, error } = await client.from('solicitudes_servicio').insert([payload]).select();
         if (error) throw error;
         return data ? data[0] : payload;
     },
 
     async fetchSolicitudes() {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { data, error } = await supabaseClient
+        const client = ensureClient();
+        const { data, error } = await client
             .from('solicitudes_servicio')
             .select('*')
             .eq('estado', 'pendiente')
@@ -298,8 +320,8 @@ const DataService = {
     },
 
     async atenderSolicitud(id) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { error } = await supabaseClient
+        const client = ensureClient();
+        const { error } = await client
             .from('solicitudes_servicio')
             .update({ estado: 'atendido' })
             .eq('id', id);
@@ -307,7 +329,7 @@ const DataService = {
     },
 
     suscribirASolicitudes(onUpdateCallback) {
-        if (!isRealSupabase) return () => {};
+        if (!isRealSupabase || !supabaseClient) return () => {};
         const channel = supabaseClient
             .channel('solicitudes-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitudes_servicio' }, (payload) => {
@@ -318,8 +340,8 @@ const DataService = {
     },
 
     async actualizarDisponibilidadMenu(id, disponible) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { error } = await supabaseClient
+        const client = ensureClient();
+        const { error } = await client
             .from('menu')
             .update({ disponible: disponible })
             .eq('id', id);
@@ -327,24 +349,24 @@ const DataService = {
     },
 
     async guardarItemMenu(item) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
+        const client = ensureClient();
         if (item.id) {
-            const { error } = await supabaseClient.from('menu').update(item).eq('id', item.id);
+            const { error } = await client.from('menu').update(item).eq('id', item.id);
             if (error) throw error;
         } else {
-            const { error } = await supabaseClient.from('menu').insert([item]);
+            const { error } = await client.from('menu').insert([item]);
             if (error) throw error;
         }
     },
 
     async eliminarItemMenu(id) {
-        if (!isRealSupabase) throw new Error("Supabase no configurado");
-        const { error } = await supabaseClient.from('menu').delete().eq('id', id);
+        const client = ensureClient();
+        const { error } = await client.from('menu').delete().eq('id', id);
         if (error) throw error;
     },
 
     suscribirAAuditoria(onUpdateCallback) {
-        if (!isRealSupabase) return () => {};
+        if (!isRealSupabase || !supabaseClient) return () => {};
         const channel = supabaseClient
             .channel('auditoria-realtime')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'auditoria_financiera' }, (payload) => {
@@ -355,7 +377,7 @@ const DataService = {
     },
 
     suscribirAMenu(onUpdateCallback) {
-        if (!isRealSupabase) return () => {};
+        if (!isRealSupabase || !supabaseClient) return () => {};
         const channel = supabaseClient
             .channel('menu-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'menu' }, (payload) => {
@@ -368,8 +390,7 @@ const DataService = {
 
 // Asegurar disponibilidad global explícita para otros scripts (como cliente-app.js)
 window.DataService = DataService;
-if (typeof supabaseClient !== 'undefined') window.supabaseClient = supabaseClient;
-if (typeof supabase !== 'undefined') window.supabase = supabase; // Exportamos la librería base también
+window.supabaseClient = supabaseClient;
 window.isRealSupabase = isRealSupabase;
 window.isSupabaseConfigured = isSupabaseConfigured;
 window.getSupabaseConfig = getSupabaseConfig;

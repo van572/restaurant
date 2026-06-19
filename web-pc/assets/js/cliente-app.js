@@ -604,12 +604,12 @@ function showSuccess(isDemo = false) {
                 </p>
             </div>
             
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 50px;">
-                <button class="confirm-btn" style="background: var(--primary); margin: 0;" onclick="location.reload()">
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 30px;">
+                <button class="confirm-btn" style="background: #ff6b00 !important; color: #ffffff !important; margin: 0; box-shadow: 0 10px 20px rgba(255, 107, 0, 0.3);" onclick="location.reload()">
                     <ion-icon name="restaurant-outline"></ion-icon>
                     ${isDemo ? 'Volver al Menú' : 'Hacer otro pedido'}
                 </button>
-                <button class="confirm-btn" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); margin: 0; font-size: 1rem;" onclick="solicitarMesa('mesero')">
+                <button class="confirm-btn" style="background: rgba(255,255,255,0.08) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.1) !important; margin: 0; font-size: 1rem; box-shadow: none;" onclick="solicitarMesa('mesero')">
                     <ion-icon name="notifications-outline"></ion-icon>
                     Llamar al mesero
                 </button>
