@@ -18,6 +18,9 @@ import io.github.jan.supabase.realtime.decodeRecord
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.Serializable
@@ -89,8 +92,30 @@ class PedidoRepository(
         ) {
             install(Postgrest)
             install(Realtime)
+            install(Auth)
         }
     } else null
+
+    // Estado de Autenticación
+    fun getCurrentUser() = supabase?.auth?.currentSessionOrNull()?.user
+    
+    suspend fun login(email: String, pass: String): Boolean {
+        val client = supabase ?: return true // Demo mode allows anything
+        return try {
+            client.auth.signInWith(Email) {
+                this.email = email
+                this.password = pass
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error login: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun logout() {
+        supabase?.auth?.signOut()
+    }
 
     // Estado reactivo expuesto a la UI
     private val _pedidos = MutableStateFlow<List<Pedido>>(emptyList())

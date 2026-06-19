@@ -49,6 +49,9 @@ import com.example.data.ConnectionType
 import com.example.data.ItemPedido
 import com.example.data.Pedido
 import com.example.data.PedidoRepository
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
+import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -112,7 +115,13 @@ fun MeseroScreen(
     var meseroNombre by remember { 
         mutableStateOf(sharedPrefs.getString("mesero_nombre", "") ?: "") 
     }
-    var showWelcomeDialog by remember { mutableStateOf(meseroNombre.isBlank()) }
+    var isLoggedIn by remember { mutableStateOf(meseroNombre.isNotBlank()) }
+    var tasaCambio by remember { mutableFloatStateOf(sharedPrefs.getFloat("tasa_cambio", 45.5f)) }
+    var userEmail by remember { mutableStateOf("") }
+    var userPass by remember { mutableStateOf("") }
+    var isAuthLoading by remember { mutableStateOf(false) }
+
+    var showWelcomeDialog by remember { mutableStateOf(false) }
     var welcomeNombreTemp by remember { mutableStateOf("") }
     var mesaSeleccionada by remember { mutableStateOf("Mesa 1") }
     var categoriaSeleccionada by remember { mutableStateOf(CategoriaPlatillo.COMIDA) }
@@ -299,6 +308,23 @@ fun MeseroScreen(
         } else if (lastKnownMaxId == null) {
             lastKnownMaxId = 0L
         }
+    }
+
+    if (!isLoggedIn) {
+        StaffLoginScreen(
+            onLoginSuccess = { email, role ->
+                userEmail = email
+                userRole = role
+                isLoggedIn = true
+                meseroNombre = email.split("@")[0].capitalize()
+                sharedPrefs.edit().putString("mesero_nombre", meseroNombre).apply()
+            },
+            isAuthLoading = isAuthLoading,
+            repository = repository,
+            scope = scope,
+            snackbarHostState = snackbarHostState
+        )
+        return
     }
 
     Scaffold(
@@ -575,7 +601,40 @@ fun MeseroScreen(
                         )
                     }
 
-                    // TAB 4: Perfil config trigger
+                    // TAB 4: Caja (Only for Cashier/Admin)
+                    if (userRole == "cajero" || userRole == "administrador") {
+                        val isCajaActive = activeTab == "caja"
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { activeTab = "caja" }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isCajaActive) Color(0xFFE8DEF8) else Color.Transparent)
+                                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Payments,
+                                    contentDescription = "Caja",
+                                    tint = if (isCajaActive) Color(0xFF1D192B) else Color(0xFF49454F),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = "Caja",
+                                fontSize = 11.sp,
+                                fontWeight = if (isCajaActive) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isCajaActive) Color(0xFF1D192B) else Color(0xFF49454F)
+                            )
+                        }
+                    }
+
+                    // TAB 5: Perfil config trigger
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1317,6 +1376,7 @@ fun MeseroScreen(
                                                                 snackbarHostState.showSnackbar("${platillo.nombre} +. Comanda: $mesaSeleccionada", duration = SnackbarDuration.Short)
                                                             }
                                                         },
+                                                        tasaCambio = tasaCambio,
                                                         onEditar = {
                                                             editingPlatillo = platillo
                                                             platilloNombreTemp = platillo.nombre
@@ -1344,6 +1404,7 @@ fun MeseroScreen(
                                     mesaName = mesaSeleccionada,
                                     carrito = carrito,
                                     totalCarrito = totalCarrito,
+                                    tasaCambio = tasaCambio,
                                     onEmpty = { },
                                     onNotesClick = { idx, item ->
                                         activeNotesCartIndex = idx
@@ -1607,11 +1668,158 @@ fun MeseroScreen(
                                                     text = "Total:",
                                                     fontWeight = FontWeight.Bold
                                                 )
-                                                Text(
-                                                    text = "$${String.format("%.2f", ped.total)}",
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = Color(0xFF6750A4)
+                                                Column(horizontalAlignment = Alignment.End) {
+                                                    Text(
+                                                        text = "$${String.format("%.2f", ped.total)}",
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = Color(0xFF6750A4)
+                                                    )
+                                                    Text(
+                                                        text = "VES ${String.format("%.2f", ped.total * tasaCambio)}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = Color(0xFF137333),
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            OutlinedButton(
+                                                onClick = {
+                                                    val html = PrintUtils.generateReceiptHtml(ped.mesa, ped.items, ped.total, tasaCambio.toDouble())
+                                                    PrintUtils.printTicket(context, html)
+                                                },
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Icon(Icons.Default.Print, null, modifier = Modifier.size(16.dp))
+                                                Spacer(Modifier.width(8.dp))
+                                                Text("Re-imprimir Ticket", fontSize = 12.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    "caja" -> {
+                        val cajeroOrders = pedidosState.filter { ped ->
+                            ped.estado == "listo" || ped.estado == "entregado"
+                        }.sortedByDescending { it.id }
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
+                        ) {
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "💰 Caja / Facturación",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = Color(0xFF1D1B20)
+                                        )
+                                        Text(
+                                            text = "Procesa pagos y genera tickets para órdenes listas",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF49454F)
+                                        )
+                                    }
+                                    
+                                    val context = LocalContext.current
+                                    IconButton(
+                                        onClick = {
+                                            val reportHeaders = listOf("ID", "Mesa", "Items", "Estado", "Total USD")
+                                            val reportRows = cajeroOrders.map { ped ->
+                                                listOf(
+                                                    ped.id?.toString() ?: "",
+                                                    ped.mesa,
+                                                    ped.items.joinToString(", ") { "${it.cantidad}x ${it.producto}" },
+                                                    ped.estado,
+                                                    "$${String.format("%.2f", ped.total)}"
                                                 )
+                                            }
+                                            val totalUsd = cajeroOrders.sumOf { it.total }
+                                            val html = PrintUtils.generateAdminReportHtml("REPORTE DE CAJA", reportHeaders, reportRows, totalUsd, tasaCambio.toDouble())
+                                            PrintUtils.printReport(context, html, "Reporte_Caja")
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.PictureAsPdf, "Exportar PDF", tint = Color(0xFF6750A4))
+                                    }
+                                }
+                            }
+
+                            if (cajeroOrders.isEmpty()) {
+                                item { 
+                                    Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                                        Text("No hay órdenes listas para cobrar", color = Color.Gray)
+                                    }
+                                }
+                            } else {
+                                items(cajeroOrders) { ped ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(text = ped.mesa, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                                                Text(text = "#${ped.id}", style = MaterialTheme.typography.labelSmall)
+                                            }
+                                            
+                                            Spacer(Modifier.height(8.dp))
+                                            
+                                            ped.items.forEach { itm ->
+                                                Text("${itm.cantidad}x ${itm.producto}", fontSize = 14.sp)
+                                            }
+                                            
+                                            Divider(Modifier.padding(vertical = 8.dp))
+                                            
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.Bottom
+                                            ) {
+                                                Column {
+                                                    Text("USD $${String.format("%.2f", ped.total)}", fontWeight = FontWeight.Bold)
+                                                    Text("VES ${String.format("%.2f", ped.total * tasaCambio)}", color = Color(0xFF137333), fontWeight = FontWeight.Bold)
+                                                }
+                                                
+                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    IconButton(onClick = {
+                                                        val html = PrintUtils.generateReceiptHtml(ped.mesa, ped.items, ped.total, tasaCambio.toDouble())
+                                                        PrintUtils.printTicket(context, html)
+                                                    }) {
+                                                        Icon(Icons.Default.Print, "Imprimir Ticket", tint = Color(0xFF6750A4))
+                                                    }
+                                                    
+                                                    Button(
+                                                        onClick = {
+                                                            ped.id?.let { id ->
+                                                                repository.actualizarEstadoPedido(id, "pagado") { exito, _ ->
+                                                                    if (exito) {
+                                                                        scope.launch { snackbarHostState.showSnackbar("Pago registrado: ${ped.mesa}") }
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF137333))
+                                                    ) {
+                                                        Text("COBRAR")
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -1730,6 +1938,98 @@ fun MeseroScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
                     )
+
+                    Divider(color = Color(0xFFCAC4D0).copy(alpha = 0.5f))
+
+                    // TASA DEL DIA (Admin/Cajero only can edit)
+                    Text(
+                        text = "ADMINISTRACIÓN FINANCIERA",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF49454F)
+                    )
+                    
+                    if (userRole == "cajero" || userRole == "administrador") {
+                        OutlinedTextField(
+                            value = tasaCambio.toString(),
+                            onValueChange = { 
+                                val newVal = it.toFloatOrNull()
+                                if (newVal != null) {
+                                    tasaCambio = newVal
+                                    sharedPrefs.edit().putFloat("tasa_cambio", newVal).apply()
+                                }
+                            },
+                            label = { Text("Tasa del Día (VES/USD)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            prefix = { Text("VES ") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
+                        )
+                        
+                        if (userRole == "administrador") {
+                            val context = LocalContext.current
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    val reportHeaders = listOf("Fecha", "ID", "Mesa", "Mesero", "Estado", "Total USD")
+                                    val reportRows = pedidosState.map { ped ->
+                                        listOf(
+                                            ped.creado_en ?: "",
+                                            ped.id?.toString() ?: "",
+                                            ped.mesa,
+                                            ped.mesero ?: "",
+                                            ped.estado,
+                                            "$${String.format("%.2f", ped.total)}"
+                                        )
+                                    }
+                                    val totalSales = pedidosState.sumOf { it.total }
+                                    val html = PrintUtils.generateAdminReportHtml("AUDITORÍA DE VENTAS", reportHeaders, reportRows, totalSales, tasaCambio.toDouble())
+                                    PrintUtils.printReport(context, html, "Auditoria_Ventas")
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D1B20)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.PictureAsPdf, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("EXPORTAR AUDITORÍA A PDF")
+                            }
+                        }
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F4EA))
+                        ) {
+                            Text(
+                                "Tasa del día: ${String.format("%.2f", tasaCambio)} VES/USD",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF137333)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Logout Button
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                repository.logout()
+                                isLoggedIn = false
+                                showProfileDialog = false
+                                sharedPrefs.edit().remove("mesero_nombre").apply()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                        border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f))
+                    ) {
+                        Icon(Icons.Default.Logout, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Cerrar Sesión")
+                    }
 
                     Divider(color = Color(0xFFCAC4D0).copy(alpha = 0.5f))
 
@@ -2173,6 +2473,7 @@ fun MeseroScreen(
 fun CardPlatillo(
     platillo: MenuPlatillo,
     onAgregar: () -> Unit,
+    tasaCambio: Float,
     onEditar: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -2222,14 +2523,23 @@ fun CardPlatillo(
                     }
                 }
 
-                Text(
-                    text = "$${String.format("%.2f", platillo.precio)}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF6750A4) // Primary purple total indicator
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "$${String.format("%.2f", platillo.precio)}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF6750A4) // Primary purple total indicator
+                        )
                     )
-                )
+                    Text(
+                        text = "VES ${String.format("%.2f", platillo.precio * tasaCambio)}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            color = Color(0xFF137333)
+                        )
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -2471,6 +2781,7 @@ fun ActiveComandaSummaryBox(
     mesaName: String,
     carrito: List<ItemCart>,
     totalCarrito: Double,
+    tasaCambio: Float,
     onEmpty: () -> Unit,
     onNotesClick: (Int, ItemCart) -> Unit,
     onMinusClick: (Int, ItemCart) -> Unit,
@@ -2645,31 +2956,57 @@ fun ActiveComandaSummaryBox(
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = Color(0xFF1D1B20)
                         )
-                        Text(
-                            text = "$${String.format("%.2f", totalCarrito)}",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF6750A4)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "$${String.format("%.2f", totalCarrito)}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF6750A4)
+                                )
                             )
-                        )
+                            Text(
+                                text = "VES ${String.format("%.2f", totalCarrito * tasaCambio)}",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF137333)
+                                )
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Primary submit/checkout button
-                    Button(
-                        onClick = onEnviarClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("submit_order_button"),
-                        enabled = !isSending && carrito.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6750A4),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+                    val context = LocalContext.current
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        OutlinedButton(
+                            onClick = {
+                                val html = PrintUtils.generateReceiptHtml(mesaName, carrito.map { it.toItemPedido() }, totalCarrito, tasaCambio.toDouble())
+                                PrintUtils.printTicket(context, html)
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Print, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Imprimir", fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = onEnviarClick,
+                            modifier = Modifier
+                                .weight(1.5f)
+                                .height(48.dp)
+                                .testTag("submit_order_button"),
+                            enabled = !isSending && carrito.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF6750A4),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
                         if (isSending) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp), 
