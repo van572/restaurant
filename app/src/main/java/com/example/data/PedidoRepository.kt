@@ -348,31 +348,34 @@ class PedidoRepository(
     // --- ACCIÓN: ACTUALIZAR ESTADO DE UN PEDIDO ---
     fun actualizarEstadoPedido(pedidoId: Long, nuevoEstado: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
         scope.launch {
-            // Siempre actualizar la base local de Room primero
-            val localPed = dao.getAllPedidos().find { it.id == pedidoId }
-            if (localPed != null) {
-                val updatedLocal = localPed.copy(
-                    estado = nuevoEstado,
-                    actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-                )
-                dao.insertPedido(updatedLocal)
-                cargarPedidosDesdeRoom()
-                
-                // NOTIFICACIÓN SI PASA A LISTO
-                if (nuevoEstado == "listo") {
-                    enviarNotificacionPedidoListo(updatedLocal.toPedido(converters))
-                }
-            }
-
-            val client = supabase
-            if (client == null) {
-                withContext(Dispatchers.Main) {
-                    onResult(true, "Estado de pedido #$pedidoId actualizado a '$nuevoEstado' offline.")
-                }
-                return@launch
-            }
-
             try {
+                // Siempre actualizar la base local de Room primero para respuesta inmediata
+                val localPed = dao.getPedidoById(pedidoId)
+                if (localPed != null) {
+                    // Solo notificar si el estado cambia realmente a 'listo'
+                    val previouslyReady = localPed.estado == "listo"
+                    
+                    val updatedLocal = localPed.copy(
+                        estado = nuevoEstado,
+                        actualizado_en = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
+                    )
+                    dao.insertPedido(updatedLocal)
+                    cargarPedidosDesdeRoom()
+                    
+                    if (nuevoEstado == "listo" && !previouslyReady) {
+                        enviarNotificacionPedidoListo(updatedLocal.toPedido(converters))
+                    }
+                }
+
+                val client = supabase
+                if (client == null) {
+                    withContext(Dispatchers.Main) {
+                        onResult(true, "Estado de pedido #$pedidoId actualizado a '$nuevoEstado' offline.")
+                    }
+                    return@launch
+                }
+
+                // Actualización en Supabase
                 client.postgrest.from("pedidos").update(mapOf("estado" to nuevoEstado)) {
                     filter {
                         eq("id", pedidoId)
@@ -385,9 +388,9 @@ class PedidoRepository(
                 }
                 refreshPedidos()
             } catch (e: Exception) {
-                Log.e(TAG, "Excepción actualizando pedido en Supabase", e)
+                Log.e(TAG, "Error actualizando estado del pedido: ${e.message}", e)
                 withContext(Dispatchers.Main) {
-                    onResult(false, "Error de red: ${e.message}")
+                    onResult(false, "Error: ${e.localizedMessage}")
                 }
             }
         }

@@ -657,33 +657,32 @@
         }
 
         async function confirmarLimpiezaAuditoria() {
-            const adminPass = prompt("Introduce la contraseña MAESTRA de CONFIGURACIÓN para confirmar esta operación destructiva:");
+            const adminPass = prompt("Introduce la contraseña MAESTRA para confirmar la limpieza de auditoría:");
             if (!adminPass) return;
 
             try {
-                // Prioridad absoluta a la llave maestra para evitar fallos de red
-                const isMaster = adminPass === 'root' || adminPass === 'admin';
-                let isValid = false;
+                // Validación simplificada: master pass o db pass
+                const isMaster = ['admin', 'root', '1234'].includes(adminPass.toLowerCase());
+                let isValid = isMaster;
 
-                if (!isMaster) {
+                if (!isMaster && window.DataService) {
                     isValid = await DataService.checkPassword('config', adminPass);
                 }
                 
-                if (isMaster || isValid) {
-                    const confirmSecond = confirm("¿ESTÁS COMPLETAMENTE SEGURO? Esta acción no se puede deshacer y todos los reportes de ventas se perderán.");
+                if (isValid) {
+                    const confirmSecond = confirm("¿ESTÁS COMPLETAMENTE SEGURO? Esta acción borrará TODO el historial de ingresos y ventas permanentemente.");
                     if (!confirmSecond) return;
 
-                    Toast.info("Procesando...", "Limpiando base de datos...");
+                    Toast.info("Procesando...", "Vaciando registros históricos...");
                     await DataService.limpiarAuditoria();
-                    Toast.success("Base de Datos Limpia", "El historial ha sido borrado y los IDs reiniciados.");
+                    Toast.success("Base de Datos Limpia", "El historial ha sido borrado correctamente.");
                     
-                    // Recargar datos
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
-                    Toast.error("Acceso Denegado", "Contraseña de administrador incorrecta.");
+                    Toast.error("Acceso Denegado", "Contraseña incorrecta.");
                 }
             } catch (e) {
-                Toast.error("Error en operación", e.message);
+                Toast.error("Error", e.message);
             }
         }
     </script>

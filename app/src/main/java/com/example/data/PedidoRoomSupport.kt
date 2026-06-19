@@ -69,6 +69,9 @@ interface PedidoDao {
     @Query("SELECT * FROM pedidos ORDER BY id ASC")
     suspend fun getAllPedidos(): List<PedidoEntity>
 
+    @Query("SELECT * FROM pedidos WHERE id = :id LIMIT 1")
+    suspend fun getPedidoById(id: Long): PedidoEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPedido(pedido: PedidoEntity)
 

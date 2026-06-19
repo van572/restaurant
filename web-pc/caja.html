@@ -840,8 +840,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            AuthManager.checkAuth();
-
             // Inicializar caja
             await CajaController.init();
             await SolicitudesController.init();

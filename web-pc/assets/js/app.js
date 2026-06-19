@@ -163,20 +163,35 @@ const AppNotifications = {
 // ----------------------------------------------------
 const CocinaController = {
     pedidos: [],
+    realMenu: [],
 
     async init() {
         console.log("🥣 Cocina: Cargando órdenes activas...");
-        this.renderMenu();
+        await this.cargarMenu();
         await this.cargarYRenderizar();
 
         // Enlace en tiempo real de Supabase
-        window.onRealtimePedidosUpdate = async (payload) => {
-            console.log("🍳 Cocina recibió notificación de cambio de datos.");
-            if (payload.eventType === 'INSERT') {
-                AppNotifications.show(`¡Nuevo Pedido de la ${payload.new.mesa}!`, 'alerta');
+        if (window.DataService) {
+            window.onRealtimePedidosUpdate = async (payload) => {
+                console.log("🍳 Cocina recibió notificación de cambio de datos.");
+                if (payload.eventType === 'INSERT') {
+                    AppNotifications.show(`¡Nuevo Pedido de la ${payload.new.mesa}!`, 'alerta');
+                }
+                await this.cargarYRenderizar();
+            };
+        }
+    },
+
+    async cargarMenu() {
+        try {
+            if (window.DataService) {
+                this.realMenu = await DataService.fetchMenu();
+                this.renderMenu();
             }
-            await this.cargarYRenderizar();
-        };
+        } catch (e) {
+            console.warn("No se pudo cargar menú real en Cocina, usando local storage.");
+            this.renderMenu(); // Fallback to global constants if exists
+        }
     },
 
     async cargarYRenderizar() {
@@ -192,11 +207,19 @@ const CocinaController = {
     renderMenu() {
         const grid = document.getElementById('menu-items-pricing');
         if (!grid) return;
-        grid.innerHTML = Object.entries(MENU_RESTAURANTE)
-            .map(([platillo, precio]) => `
+
+        let itemsToRender = [];
+        if (this.realMenu && this.realMenu.length > 0) {
+            itemsToRender = this.realMenu.map(m => ({ nombre: m.nombre, precio: m.precio }));
+        } else {
+            itemsToRender = Object.entries(MENU_RESTAURANTE).map(([n, p]) => ({ nombre: n, precio: p }));
+        }
+
+        grid.innerHTML = itemsToRender
+            .map(item => `
                 <div class="menu-item-row">
-                    <span class="menu-name">${platillo}</span>
-                    <span class="menu-price">${formatCurrency(precio)}</span>
+                    <span class="menu-name">${item.nombre}</span>
+                    <span class="menu-price">${formatCurrency(item.precio)}</span>
                 </div>
             `).join('');
     },
@@ -692,7 +715,18 @@ const AdminMenuController = {
     }
 };
 
+const MenuEditor = {
+    async abrirModal() {
+        if (window.AdminMenuController) {
+            await AdminMenuController.agregarNuevo();
+        } else {
+            Toast.error("Error", "Controlador de menú no disponible.");
+        }
+    }
+};
+
 // Global bindings
+window.MenuEditor = MenuEditor;
 window.CocinaController = CocinaController;
 window.CajaController = CajaController;
 window.AuditoriaController = AuditoriaController;

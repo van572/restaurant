@@ -49,7 +49,7 @@ import com.example.data.ConnectionType
 import com.example.data.ItemPedido
 import com.example.data.Pedido
 import com.example.data.PedidoRepository
-
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
 // Presets Estándar del Menú para Selección por el Mesero
@@ -99,6 +99,8 @@ fun MeseroScreen(
 ) {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Observe StateFlows del Repositorio
     val pedidosState by repository.pedidos.collectAsState()
@@ -114,12 +116,14 @@ fun MeseroScreen(
     var welcomeNombreTemp by remember { mutableStateOf("") }
     var mesaSeleccionada by remember { mutableStateOf("Mesa 1") }
     var categoriaSeleccionada by remember { mutableStateOf(CategoriaPlatillo.COMIDA) }
+    var menuSearchQuery by remember { mutableStateOf("") }
     
     // --- CHEF / KITCHEN STATE CONFIGS ---
     var userRole by remember { mutableStateOf("mesero") } // "mesero" o "cocinero"
     var lastKnownMaxId by remember { mutableStateOf<Long?>(null) }
     var activeNewOrderNotification by remember { mutableStateOf<Pedido?>(null) }
     var cocineroFiltroEstado by remember { mutableStateOf("todos") } // "todos", "pendiente", "cocinando", "listo"
+    var activeOrderReadyNotification by remember { mutableStateOf<Pedido?>(null) }
     
     // El "Carrito" o Pedido en curso
     val carrito = remember { mutableStateListOf<ItemCart>() }
@@ -191,7 +195,9 @@ fun MeseroScreen(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                Toast.makeText(context, "🔔 Alertas e hilos de cocina activados", Toast.LENGTH_SHORT).show()
+                scope.launch {
+                    snackbarHostState.showSnackbar("🔔 Alertas e hilos de cocina activados")
+                }
             }
         }
     )
@@ -203,6 +209,29 @@ fun MeseroScreen(
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
+            }
+        }
+    }
+
+    // Monitoreo en tiempo real de pedidos listos para el mesero
+    val notifiedReadyIds = remember { mutableStateListOf<Long>() }
+    LaunchedEffect(pedidosState) {
+        if (userRole == "mesero" && meseroNombre.isNotBlank()) {
+            val newlyReady = pedidosState.find { ped ->
+                ped.estado == "listo" && 
+                ped.mesero.equals(meseroNombre, ignoreCase = true) && 
+                !notifiedReadyIds.contains(ped.id ?: 0L)
+            }
+            
+            if (newlyReady != null) {
+                activeOrderReadyNotification = newlyReady
+                notifiedReadyIds.add(newlyReady.id ?: 0L)
+                
+                // Play notification sound
+                try {
+                    val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 200)
+                } catch (e: Exception) { e.printStackTrace() }
             }
         }
     }
@@ -274,6 +303,7 @@ fun MeseroScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             // Top App Bar styled matching top header element of Vibrant Palette HTML
             Surface(
@@ -414,7 +444,9 @@ fun MeseroScreen(
                                         }
                                     }
                                 }
-                                Toast.makeText(context, "Sincronizando...", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Sincronizando...")
+                                }
                             },
                             modifier = Modifier
                                 .size(40.dp)
@@ -512,7 +544,38 @@ fun MeseroScreen(
                         )
                     }
 
-                    // TAB 3: Perfil config trigger
+                    // TAB 3: Historial (Past orders)
+                    val isHistorialActive = activeTab == "historial"
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { activeTab = "historial" }
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (isHistorialActive) Color(0xFFE8DEF8) else Color.Transparent)
+                                .padding(horizontal = 20.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Historial",
+                                tint = if (isHistorialActive) Color(0xFF1D192B) else Color(0xFF49454F),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Text(
+                            text = "Historial",
+                            fontSize = 11.sp,
+                            fontWeight = if (isHistorialActive) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isHistorialActive) Color(0xFF1D192B) else Color(0xFF49454F)
+                        )
+                    }
+
+                    // TAB 4: Perfil config trigger
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -651,6 +714,52 @@ fun MeseroScreen(
                 }
             }
 
+            // Banner para PEDIDO LISTO (Waiters only)
+            AnimatedVisibility(
+                visible = activeOrderReadyNotification != null,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                activeOrderReadyNotification?.let { ped ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF1A73E8)) // Modern Blue for ready status
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .clickable {
+                                activeOrderReadyNotification = null
+                                activeTab = "pedidos" // Show the orders list to find it
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("🍳", fontSize = 24.sp)
+                            Column {
+                                Text(
+                                    text = "ORDEN LISTA: ${ped.mesa}",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "La cocina ha terminado la preparación. ¡Corre a servirlo!",
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                        IconButton(onClick = { activeOrderReadyNotification = null }) {
+                            Icon(Icons.Default.Check, contentDescription = "Entendido", tint = Color.White)
+                        }
+                    }
+                }
+            }
+
             if (userRole == "cocinero") {
                 CocinaScreenContent(
                     pedidos = pedidosState,
@@ -659,9 +768,13 @@ fun MeseroScreen(
                     onStatusUpdate = { id, nuevoEstado ->
                         repository.actualizarEstadoPedido(id, nuevoEstado) { exito, error ->
                             if (exito) {
-                                Toast.makeText(context, "Pedido actualizado a: ${nuevoEstado.uppercase()}", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Pedido actualizado a: ${nuevoEstado.uppercase()}")
+                                }
                             } else {
-                                Toast.makeText(context, "Error: $error ❌", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Error: $error ❌")
+                                }
                             }
                         }
                     },
@@ -680,7 +793,8 @@ fun MeseroScreen(
                 val tabItems = listOf(
                     "mesas" to "Mesas",
                     "menu" to "Menú",
-                    "pedidos" to "Cocina (KDS)"
+                    "pedidos" to "Cocina",
+                    "historial" to "Historial"
                 )
 
                 tabItems.forEach { (key, label) ->
@@ -727,6 +841,52 @@ fun MeseroScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
                         ) {
+                            item {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                        .padding(bottom = 8.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        androidx.compose.foundation.Image(
+                                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.img_restaurant_banner_1781876475366),
+                                            contentDescription = "Restaurant Banner",
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                                                    )
+                                                )
+                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomStart)
+                                                .padding(16.dp)
+                                        ) {
+                                            Text(
+                                                text = "¡Buen día, $meseroNombre!",
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = "Gestión de mesas y comandas activas",
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             item {
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     Text(
@@ -801,7 +961,10 @@ fun MeseroScreen(
                                                             mesaSeleccionada = mesa
                                                             // Auto shortcut view switch to start adding dishes!
                                                             activeTab = "menu"
-                                                            Toast.makeText(context, "$mesa seleccionada para ordenar", Toast.LENGTH_SHORT).show()
+                                                            scope.launch {
+                                                                snackbarHostState.currentSnackbarData?.dismiss()
+                                                                snackbarHostState.showSnackbar("$mesa seleccionada para ordenar")
+                                                            }
                                                         }
                                                         .testTag("mesa_card_$mesa"),
                                                     shape = RoundedCornerShape(16.dp),
@@ -907,9 +1070,13 @@ fun MeseroScreen(
                                             if (exito) {
                                                 carrito.clear()
                                                 activeTab = "pedidos" // Auto-redirigir a cocina para monitorear el pedido enviado
-                                                Toast.makeText(context, "¡Comanda enviada a Cocina! 🍳🚀", Toast.LENGTH_LONG).show()
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("¡Comanda enviada a Cocina! 🍳🚀")
+                                                }
                                             } else {
-                                                Toast.makeText(context, "Error: $errorMsg ❌", Toast.LENGTH_LONG).show()
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Error: $errorMsg ❌")
+                                                }
                                             }
                                         }
                                     },
@@ -975,7 +1142,9 @@ fun MeseroScreen(
                                                     menuPlatillos.clear()
                                                     menuPlatillos.addAll(MENU_ITEMS)
                                                     saveMenuToPrefs(sharedPrefs, menuPlatillos)
-                                                    Toast.makeText(context, "Menú restablecido a predefinidos", Toast.LENGTH_SHORT).show()
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Menú restablecido a predefinidos")
+                                                    }
                                                 },
                                                 colors = ButtonDefaults.filledTonalButtonColors(
                                                     containerColor = Color(0xFF4F378B).copy(alpha = 0.1f),
@@ -1025,6 +1194,39 @@ fun MeseroScreen(
 
                             // Horizontal Tab scroll for food categories
                             item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = menuSearchQuery,
+                                        onValueChange = { menuSearchQuery = it },
+                                        placeholder = { Text("Buscar platillo...", fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp)) },
+                                        trailingIcon = {
+                                            if (menuSearchQuery.isNotEmpty()) {
+                                                IconButton(onClick = { menuSearchQuery = "" }) {
+                                                    Icon(Icons.Default.Clear, null, modifier = Modifier.size(18.dp))
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(56.dp)
+                                            .testTag("menu_search_input"),
+                                        shape = RoundedCornerShape(16.dp),
+                                        singleLine = true,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            unfocusedContainerColor = Color(0xFFF7F2FA),
+                                            focusedContainerColor = Color.White,
+                                            unfocusedBorderColor = Color(0xFFCAC4D0).copy(alpha = 0.5f)
+                                        )
+                                    )
+                                }
+                            }
+
+                            item {
                                 LazyRow(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1042,9 +1244,12 @@ fun MeseroScreen(
                                 }
                             }
 
-                            // Grilla de platillos filtering corresponding category
+                            // Grilla de platillos filtering corresponding category and search query
                             item {
-                                val filtrados = menuPlatillos.filter { it.categoria == categoriaSeleccionada }
+                                val filtrados = menuPlatillos.filter { 
+                                    it.categoria == categoriaSeleccionada && 
+                                    (menuSearchQuery.isEmpty() || it.nombre.contains(menuSearchQuery, ignoreCase = true) || it.descripcion.contains(menuSearchQuery, ignoreCase = true))
+                                }
                                 if (filtrados.isEmpty()) {
                                     Card(
                                         modifier = Modifier
@@ -1080,7 +1285,9 @@ fun MeseroScreen(
                                                     menuPlatillos.clear()
                                                     menuPlatillos.addAll(MENU_ITEMS)
                                                     saveMenuToPrefs(sharedPrefs, menuPlatillos)
-                                                    Toast.makeText(context, "Menú predefinido restaurado", Toast.LENGTH_SHORT).show()
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Menú predefinido restaurado")
+                                                    }
                                                 },
                                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
                                             ) {
@@ -1105,7 +1312,10 @@ fun MeseroScreen(
                                                             } else {
                                                                 carrito.add(ItemCart(platillo, 1))
                                                             }
-                                                            Toast.makeText(context, "${platillo.nombre} +. Comanda: $mesaSeleccionada", Toast.LENGTH_SHORT).show()
+                                                            scope.launch {
+                                                                snackbarHostState.currentSnackbarData?.dismiss()
+                                                                snackbarHostState.showSnackbar("${platillo.nombre} +. Comanda: $mesaSeleccionada", duration = SnackbarDuration.Short)
+                                                            }
                                                         },
                                                         onEditar = {
                                                             editingPlatillo = platillo
@@ -1164,9 +1374,13 @@ fun MeseroScreen(
                                             if (exito) {
                                                 carrito.clear()
                                                 activeTab = "pedidos" // Auto forward to kitchen tracker to monitor!
-                                                Toast.makeText(context, "¡Comanda enviada a Cocina! 🍳🚀", Toast.LENGTH_LONG).show()
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("¡Comanda enviada a Cocina! 🍳🚀")
+                                                }
                                             } else {
-                                                Toast.makeText(context, "Error: $errorMsg ❌", Toast.LENGTH_LONG).show()
+                                                scope.launch {
+                                                    snackbarHostState.showSnackbar("Error: $errorMsg ❌")
+                                                }
                                             }
                                         }
                                     },
@@ -1279,14 +1493,128 @@ fun MeseroScreen(
                                             if (id != null) {
                                                 repository.actualizarEstadoPedido(id, nuevoEstado) { exito, errorMsg ->
                                                     if (exito) {
-                                                        Toast.makeText(context, "Pedido #${ped.id} está ahora en: ${nuevoEstado.uppercase()}", Toast.LENGTH_SHORT).show()
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Pedido #${ped.id} está ahora en: ${nuevoEstado.uppercase()}")
+                                                        }
                                                     } else {
-                                                        Toast.makeText(context, "Error: $errorMsg ❌", Toast.LENGTH_SHORT).show()
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Error: $errorMsg ❌")
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    "historial" -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
+                        ) {
+                            item {
+                                Column {
+                                    Text(
+                                        text = "📜 Historial de Órdenes",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF1D1B20)
+                                    )
+                                    Text(
+                                        text = "Pedidos ya servidos o pagados",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF49454F)
+                                    )
+                                }
+                            }
+
+                            val historial = pedidosState.filter { 
+                                (it.mesero.equals(meseroNombre, ignoreCase = true) || meseroNombre.isBlank()) && 
+                                (it.estado == "entregado" || it.estado == "pagado")
+                            }.sortedByDescending { it.id }
+
+                            if (historial.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("📭", fontSize = 48.sp)
+                                            Text(
+                                                "Sin historial reciente",
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF49454F)
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(historial) { ped ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        border = BorderStroke(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = ped.mesa,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = 18.sp
+                                                )
+                                                Surface(
+                                                    color = if (ped.estado == "pagado") Color(0xFFE6F4EA) else Color(0xFFF1F3F4),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = ped.estado.uppercase(),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (ped.estado == "pagado") Color(0xFF137333) else Color(0xFF3C4043)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            ped.items.forEach { itm ->
+                                                Text(
+                                                    text = "${itm.cantidad}x ${itm.producto}",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = Color(0xFF49454F)
+                                                )
+                                            }
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(vertical = 8.dp),
+                                                thickness = 1.dp,
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = "Total:",
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    text = "$${String.format("%.2f", ped.total)}",
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = Color(0xFF6750A4)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1309,6 +1637,23 @@ fun MeseroScreen(
                         fontSize = 13.sp,
                         color = Color(0xFF49454F)
                     )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    
+                    val quickNotes = listOf("Sin cebolla", "Extra queso", "Para llevar", "Salsa aparte", "Término medio")
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(quickNotes) { note ->
+                            SuggestionChip(
+                                onClick = { 
+                                    notesTextTemp = if (notesTextTemp.isBlank()) note else "$notesTextTemp, $note"
+                                },
+                                label = { Text(note, fontSize = 11.sp) }
+                            )
+                        }
+                    }
+                    
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = notesTextTemp,
@@ -1608,9 +1953,13 @@ fun MeseroScreen(
                             if (exito) {
                                 carrito.clear()
                                 activeTab = "pedidos" // Cambiar a la pestaña de Cocina directamente para monitorearlo en vivo
-                                Toast.makeText(context, "¡Comanda enviada a Cocina! 🍳🚀", Toast.LENGTH_LONG).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("¡Comanda enviada a Cocina! 🍳🚀")
+                                }
                             } else {
-                                Toast.makeText(context, "Error: $errorMsg ❌", Toast.LENGTH_LONG).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Error: $errorMsg ❌")
+                                }
                             }
                         }
                     },
@@ -1724,11 +2073,15 @@ fun MeseroScreen(
                     onClick = {
                         val parsedPrecio = platilloPrecioTemp.toDoubleOrNull()
                         if (platilloNombreTemp.isBlank()) {
-                            Toast.makeText(context, "El nombre no puede estar vacío", Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("El nombre no puede estar vacío")
+                            }
                             return@Button
                         }
                         if (parsedPrecio == null || parsedPrecio < 0.0) {
-                            Toast.makeText(context, "Ingresa un precio válido", Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Ingresa un precio válido")
+                            }
                             return@Button
                         }
 
@@ -1744,11 +2097,15 @@ fun MeseroScreen(
                         if (original == null) {
                             // Verify uniqueness
                             if (menuPlatillos.any { it.nombre.equals(edited.nombre, ignoreCase = true) }) {
-                                Toast.makeText(context, "Ya existe un platillo con ese nombre", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Ya existe un platillo con ese nombre")
+                                }
                                 return@Button
                             }
                             menuPlatillos.add(edited)
-                            Toast.makeText(context, "¡Platillo creado con éxito! 🍕🌱", Toast.LENGTH_SHORT).show()
+                            scope.launch {
+                                snackbarHostState.showSnackbar("¡Platillo creado con éxito! 🍕🌱")
+                            }
                         } else {
                             // Find and update item by name or reference
                             val targetIndex = menuPlatillos.indexOfFirst { it.nombre == original.nombre }
@@ -1759,7 +2116,9 @@ fun MeseroScreen(
                                 if (cartIndex != -1) {
                                     carrito[cartIndex] = carrito[cartIndex].copy(platillo = edited)
                                 }
-                                Toast.makeText(context, "¡Platillo modificado con éxito!", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("¡Platillo modificado con éxito!")
+                                }
                             }
                         }
                         saveMenuToPrefs(sharedPrefs, menuPlatillos)
@@ -1787,7 +2146,9 @@ fun MeseroScreen(
                                 // Also remove from current cart/comanda
                                 carrito.removeIf { it.platillo.nombre == original.nombre }
                                 showEditPlatilloDialog = false
-                                Toast.makeText(context, "Platillo eliminado de la carta", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Platillo eliminado de la carta")
+                                }
                             },
                             colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB3261E))
                         ) {
