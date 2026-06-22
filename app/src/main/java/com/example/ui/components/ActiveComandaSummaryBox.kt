@@ -22,13 +22,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.ItemCart
+import com.example.data.*
+import com.example.ui.PrintUtils
 
 @Composable
 fun ActiveComandaSummaryBox(
     mesaName: String,
     carrito: List<ItemCart>,
     totalCarrito: Double,
+    tasaCambio: Float,
     onEmpty: () -> Unit,
     onNotesClick: (Int, ItemCart) -> Unit,
     onMinusClick: (Int, ItemCart) -> Unit,
@@ -40,10 +42,10 @@ fun ActiveComandaSummaryBox(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+            .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F2FA))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -58,18 +60,18 @@ fun ActiveComandaSummaryBox(
                     Icon(
                         imageVector = Icons.Default.ShoppingCart, 
                         contentDescription = null, 
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color(0xFF6750A4),
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = "Comanda: $mesaName",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color(0xFF1D1B20)
                     )
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFFCAC4D0).copy(alpha = 0.5f))
 
             if (carrito.isEmpty()) {
                 Column(
@@ -82,14 +84,14 @@ fun ActiveComandaSummaryBox(
                     Text(
                         text = "Sin platillos agregados aún.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color(0xFF49454F),
                         textAlign = TextAlign.Center
                     )
                     Button(
                         onClick = onEmpty,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            containerColor = Color(0xFFE8DEF8),
+                            contentColor = Color(0xFF1D192B)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -108,7 +110,7 @@ fun ActiveComandaSummaryBox(
                                 Text(
                                     text = "${item.platillo.emoji} ${item.platillo.nombre}",
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = Color(0xFF1D1B20)
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -117,7 +119,7 @@ fun ActiveComandaSummaryBox(
                                     Text(
                                         text = "Subtotal: $${String.format("%.2f", item.platillo.precio * item.cantidad)}",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = Color(0xFF49454F)
                                     )
                                     if (item.notas.isNotEmpty()) {
                                         Text(
@@ -143,7 +145,7 @@ fun ActiveComandaSummaryBox(
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "Editar notas",
-                                        tint = if (item.notas.isNotEmpty()) Color(0xFFD97706) else MaterialTheme.colorScheme.primary,
+                                        tint = if (item.notas.isNotEmpty()) Color(0xFFD97706) else Color(0xFF6750A4),
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -154,20 +156,20 @@ fun ActiveComandaSummaryBox(
                                     modifier = Modifier
                                         .size(28.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                        .background(Color(0xFFE8DEF8))
                                 ) {
                                     Text(
                                         text = "−",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = Color(0xFF1D192B)
                                     )
                                 }
 
                                 Text(
                                     text = item.cantidad.toString(),
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = Color(0xFF1D1B20),
                                     modifier = Modifier.padding(horizontal = 4.dp)
                                 )
 
@@ -177,12 +179,12 @@ fun ActiveComandaSummaryBox(
                                     modifier = Modifier
                                         .size(28.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                        .background(Color(0xFFE8DEF8))
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Add, 
                                         contentDescription = "Agregar cantidad", 
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer, 
+                                        tint = Color(0xFF1D192B), 
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -190,7 +192,7 @@ fun ActiveComandaSummaryBox(
                         }
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                    Divider(modifier = Modifier.padding(vertical = 4.dp), color = Color(0xFFCAC4D0).copy(alpha = 0.5f))
 
                     // Account complete total row
                     Row(
@@ -201,46 +203,73 @@ fun ActiveComandaSummaryBox(
                         Text(
                             text = "TOTAL DE LA CUENTA:", 
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = Color(0xFF1D1B20)
                         )
-                        Text(
-                            text = "$${String.format("%.2f", totalCarrito)}",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "$${String.format("%.2f", totalCarrito)}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF6750A4)
+                                )
                             )
-                        )
+                            Text(
+                                text = "VES ${String.format("%.2f", totalCarrito * tasaCambio)}",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF137333)
+                                )
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Primary submit/checkout button
-                    Button(
-                        onClick = onEnviarClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("submit_order_button"),
-                        enabled = !isSending && carrito.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (isSending) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp), 
-                                color = MaterialTheme.colorScheme.onPrimary, 
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp), 
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Send, null)
-                                Text("ENVIAR PEDIDO A COCINA", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        OutlinedButton(
+                            onClick = {
+                                val html = PrintUtils.generateReceiptHtml(mesaName, carrito.map { it.toItemPedido() }, totalCarrito, tasaCambio.toDouble())
+                                PrintUtils.printTicket(context, html)
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.ShoppingCart, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Imprimir", fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = onEnviarClick,
+                            modifier = Modifier
+                                .weight(1.5f)
+                                .height(48.dp)
+                                .testTag("submit_order_button"),
+                            enabled = !isSending && carrito.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF6750A4),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isSending) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp), 
+                                    color = Color.White, 
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp), 
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Send, null)
+                                    Text("ENVIAR PEDIDO A COCINA", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
                             }
                         }
                     }

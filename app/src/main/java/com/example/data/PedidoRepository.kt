@@ -3,8 +3,6 @@ package com.example.data
 import android.content.Context
 import android.util.Log
 import com.example.BuildConfig
-import com.example.ui.CategoriaPlatillo
-import com.example.ui.MenuPlatillo
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
@@ -25,29 +23,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.Serializable
 import java.io.IOException
-
-// --------------------------------------------------------------------
-// MODELO DE DATOS EN ESTRICTA RELACIÓN CON EL ESQUEMA POSTGRES
-// --------------------------------------------------------------------
-@Serializable
-data class ItemPedido(
-    val producto: String,
-    val cantidad: Int,
-    val precio: Double,
-    val notas: String = ""
-)
-
-@Serializable
-data class Pedido(
-    val id: Long? = null,
-    val mesa: String,
-    val mesero: String,
-    val items: List<ItemPedido>,
-    val total: Double,
-    val estado: String = "pendiente", // 'pendiente', 'cocinando', 'listo', 'entregado', 'pagado'
-    val creado_en: String? = null,
-    val actualizado_en: String? = null
-)
 
 @Serializable
 data class PedidoInsert(
@@ -117,6 +92,89 @@ class PedidoRepository(
         supabase?.auth?.signOut()
     }
 
+    // --- ESTADO DE INVENTARIO ---
+    private val _inventario = MutableStateFlow<List<InventarioItem>>(emptyList())
+    val inventario: StateFlow<List<InventarioItem>> = _inventario.asStateFlow()
+
+    // --- ACCIÓN: REFRESCAR INVENTARIO ---
+    fun refreshInventario() {
+        val client = supabase
+        scope.launch {
+            try {
+                if (client != null) {
+                    val result = client.postgrest.from("inventario").select().decodeList<InventarioItem>()
+                    // Sincronizar con Room
+                    val entities = result.map { i ->
+                        InventarioEntity(
+                            id = i.id ?: 0,
+                            nombre = i.nombre,
+                            categoria = i.categoria.name,
+                            stock = i.stock,
+                            barcode = i.barcode,
+                            unidadMedida = i.unidadMedida
+                        )
+                    }
+                    dao.insertInventarioItems(entities)
+                }
+                cargarInventarioDesdeRoom()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error refrescando inventario", e)
+                cargarInventarioDesdeRoom()
+            }
+        }
+    }
+
+    private suspend fun cargarInventarioDesdeRoom() {
+        val entities = dao.getAllInventario()
+        _inventario.value = entities.map { e ->
+            InventarioItem(
+                id = e.id,
+                nombre = e.nombre,
+                categoria = InventarioCategoria.valueOf(e.categoria),
+                stock = e.stock,
+                barcode = e.barcode,
+                unidadMedida = e.unidadMedida
+            )
+        }
+    }
+
+    suspend fun updateInventarioItem(item: InventarioItem): Boolean {
+        return try {
+            val entity = InventarioEntity(
+                id = item.id ?: 0,
+                nombre = item.nombre,
+                categoria = item.categoria.name,
+                stock = item.stock,
+                barcode = item.barcode,
+                unidadMedida = item.unidadMedida
+            )
+            dao.insertInventario(entity)
+            
+            supabase?.let { client ->
+                client.postgrest.from("inventario").upsert(item)
+            }
+            refreshInventario()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error actualizando inventario", e)
+            false
+        }
+    }
+
+    suspend fun getInventarioByBarcode(barcode: String): InventarioItem? {
+        val entity = dao.getInventarioByBarcode(barcode)
+        return entity?.let { e ->
+            InventarioItem(
+                id = e.id,
+                nombre = e.nombre,
+                categoria = InventarioCategoria.valueOf(e.categoria),
+                stock = e.stock,
+                barcode = e.barcode,
+                unidadMedida = e.unidadMedida
+            )
+        }
+    }
+
     // Estado reactivo expuesto a la UI
     private val _pedidos = MutableStateFlow<List<Pedido>>(emptyList())
     val pedidos: StateFlow<List<Pedido>> = _pedidos.asStateFlow()
@@ -146,12 +204,20 @@ class PedidoRepository(
                 } else {
                     cargarPedidosDesdeRoom()
                 }
+
+                val invExisting = dao.getAllInventario()
+                if (invExisting.isEmpty()) {
+                    inicializarMockInventario()
+                } else {
+                    cargarInventarioDesdeRoom()
+                }
             }
         } else {
             Log.i(TAG, "Supabase detectado. Inicializando conexión Realtime SDK.")
             _connectionState.value = ConnectionType.NUBE
             inicializarSuscripcionRealtime()
             refreshPedidos()
+            refreshInventario()
         }
     }
 
@@ -332,6 +398,29 @@ class PedidoRepository(
                 
                 // Guardar localmente en Room
                 dao.insertPedido(PedidoEntity.fromPedido(nuevoPedido, nuevoId, converters))
+                
+                // DEDUCIR STOCK EN MODO DEMO
+                scope.launch {
+                    nuevoPedido.items.forEach { item ->
+                        val platillo = MENU_ITEMS.find { it.nombre == item.producto || item.producto.startsWith(it.nombre) }
+                        platillo?.inventarioDependienteId?.let { invId ->
+                            dao.getInventarioById(invId)?.let { invEntity ->
+                                val deduction = if (platillo.esPorPeso) {
+                                    // El peso está en el nombre (Kg) o usamos la cantidad (pero en este demo simplificamos)
+                                    // Intentar extraer peso del nombre si es por peso
+                                    val regex = ".*\\(([0-9.]+).*".toRegex()
+                                    val match = regex.find(item.producto)
+                                    match?.groupValues?.get(1)?.toDoubleOrNull() ?: 1.0
+                                } else {
+                                    item.cantidad.toDouble()
+                                }
+                                dao.insertInventario(invEntity.copy(stock = (invEntity.stock - deduction).coerceAtLeast(0.0)))
+                            }
+                        }
+                    }
+                    cargarInventarioDesdeRoom()
+                }
+
                 cargarPedidosDesdeRoom()
                 
                 withContext(Dispatchers.Main) {
@@ -494,5 +583,23 @@ class PedidoRepository(
             dao.insertPedido(PedidoEntity.fromPedido(mock2, 2L, converters))
             cargarPedidosDesdeRoom()
         }
+    }
+
+    private suspend fun inicializarMockInventario() {
+        val licores = listOf(
+            InventarioEntity(nombre = "Whisky 18 años", categoria = "LICORES", stock = 5.0, barcode = "7591001", unidadMedida = "Lt"),
+            InventarioEntity(nombre = "Cerveza Polar", categoria = "LICORES", stock = 120.0, barcode = "7591002", unidadMedida = "un")
+        )
+        val carnes = listOf(
+            InventarioEntity(nombre = "Solomo de Cuerito", categoria = "CARNE", stock = 15.5, barcode = "7592001", unidadMedida = "Kg"),
+            InventarioEntity(nombre = "Pollo Entero", categoria = "CARNE", stock = 0.0, barcode = "7592002", unidadMedida = "Kg") // AGOTADO
+        )
+        val alimentos = listOf(
+            InventarioEntity(nombre = "Harina Pan", categoria = "ALIMENTO", stock = 20.0, barcode = "7593001", unidadMedida = "un"),
+            InventarioEntity(nombre = "Papas", categoria = "ALIMENTO", stock = 50.0, barcode = "7593002", unidadMedida = "Kg")
+        )
+        
+        dao.insertInventarioItems(licores + carnes + alimentos)
+        cargarInventarioDesdeRoom()
     }
 }

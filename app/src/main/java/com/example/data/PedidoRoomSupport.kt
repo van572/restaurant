@@ -61,6 +61,16 @@ data class PedidoEntity(
     }
 }
 
+@Entity(tableName = "inventario")
+data class InventarioEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val nombre: String,
+    val categoria: String,
+    val stock: Double,
+    val barcode: String?,
+    val unidadMedida: String
+)
+
 @Dao
 interface PedidoDao {
     @Query("SELECT * FROM pedidos ORDER BY id ASC")
@@ -83,9 +93,25 @@ interface PedidoDao {
 
     @Query("DELETE FROM pedidos WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    // Inventario
+    @Query("SELECT * FROM inventario")
+    suspend fun getAllInventario(): List<InventarioEntity>
+
+    @Query("SELECT * FROM inventario WHERE id = :id LIMIT 1")
+    suspend fun getInventarioById(id: Long): InventarioEntity?
+
+    @Query("SELECT * FROM inventario WHERE barcode = :barcode LIMIT 1")
+    suspend fun getInventarioByBarcode(barcode: String): InventarioEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInventario(item: InventarioEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertInventarioItems(items: List<InventarioEntity>)
 }
 
-@Database(entities = [PedidoEntity::class], version = 1, exportSchema = false)
+@Database(entities = [PedidoEntity::class, InventarioEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun pedidoDao(): PedidoDao
 

@@ -6,10 +6,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.ConnectionType
-import com.example.data.ItemPedido
-import com.example.data.Pedido
-import com.example.data.PedidoRepository
+import com.example.data.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,8 +31,8 @@ class MeseroViewModel(
     private val _activeTab = MutableStateFlow("mesas") // "mesas", "menu", "pedidos"
     val activeTab: StateFlow<String> = _activeTab.asStateFlow()
 
-    private val _categoriaSeleccionada = MutableStateFlow(CategoriaPlatillo.COMIDA)
-    val categoriaSeleccionada: StateFlow<CategoriaPlatillo> = _categoriaSeleccionada.asStateFlow()
+    private val _categoriaSeleccionada = MutableStateFlow("Todos")
+    val categoriaSeleccionada: StateFlow<String> = _categoriaSeleccionada.asStateFlow()
 
     private val _mesaSeleccionada = MutableStateFlow("Mesa 1")
     val mesaSeleccionada: StateFlow<String> = _mesaSeleccionada.asStateFlow()
@@ -63,7 +60,7 @@ class MeseroViewModel(
         _activeTab.value = tab
     }
 
-    fun setCategoriaSeleccionada(cat: CategoriaPlatillo) {
+    fun setCategoriaSeleccionada(cat: String) {
         _categoriaSeleccionada.value = cat
     }
 
