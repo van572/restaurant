@@ -674,35 +674,157 @@ const AdminMenuController = {
     },
     mostrarFormulario(item = null) {
         const isEditing = !!item;
-        const nombre = prompt("Nombre del platillo:", item ? item.nombre : "");
-        if (nombre === null) return;
-        if (!nombre.trim()) return Toast.error("Faltan datos", "El nombre es obligatorio");
 
-        const precio = prompt("Precio:", item ? item.precio : "");
-        if (precio === null) return;
-        const precioNum = parseFloat(precio);
-        if (isNaN(precioNum)) return Toast.error("Error de Formato", "El precio debe ser un número");
+        // Limpiar cualquier modal previo
+        let existing = document.getElementById('menu-item-editor-modal');
+        if (existing) existing.remove();
 
-        const categoria = prompt("Categoría (COMIDA, BEBIDA, ACOMPAÑAMIENTO, POSTRE):", item ? item.categoria : "COMIDA");
-        if (categoria === null) return;
+        const modal = document.createElement('div');
+        modal.id = 'menu-item-editor-modal';
+        modal.className = 'supabase-config-modal-overlay';
+        modal.style.display = 'flex';
 
-        const descripcion = prompt("Descripción breve:", item ? item.descripcion : "");
-        if (descripcion === null) return;
+        const currentEmoji = item ? (item.emoji || '🍔') : '🍔';
+        const currentCategory = item ? (item.categoria || 'COMIDA') : 'COMIDA';
+        const isPeso = item && item.unidad_medida && item.unidad_medida !== 'unid';
 
-        const emoji = prompt("Emoji sugerido:", item ? item.emoji : "🍔");
-        if (emoji === null) return;
+        const emojisList = ["🍔", "🍕", "🌮", "🥗", "🥪", "🍰", "🍵", "🍳", "🍗", "🍟", "🥣", "🍦", "🍹", "🥩", "🍷", "🍺", "☕", "🥞", "🍝", "🍩", "🧁", "🍪", "🥤", "🍣", "🍛", "🥫"];
+        const categoriesList = ["COMIDA", "BEBIDA", "ACOMPAÑAMIENTO", "POSTRE", "OTROS"];
 
-        const nuevoItem = {
-            id: item ? item.id : undefined,
-            nombre: nombre.trim(),
-            precio: precioNum,
-            categoria: categoria.toUpperCase().trim(),
-            descripcion: descripcion.trim(),
-            emoji: emoji.trim(),
-            disponible: item ? item.disponible : true
+        let emojiChipsHtml = emojisList.map(e => `
+            <span class="menu-emoji-chip ${e === currentEmoji ? 'selected' : ''}" data-emoji="${e}" onclick="document.querySelectorAll('.menu-emoji-chip').forEach(c=>c.classList.remove('selected')); this.classList.add('selected'); document.getElementById('editor-emoji-display').innerText='${e}';">${e}</span>
+        `).join('');
+
+        let categoryChipsHtml = categoriesList.map(cat => `
+            <span class="menu-category-chip ${cat === currentCategory.toUpperCase() ? 'selected' : ''}" data-category="${cat}" onclick="document.querySelectorAll('.menu-category-chip').forEach(c=>c.classList.remove('selected')); this.classList.add('selected'); document.getElementById('editor-categoria').value='${cat}';">${cat}</span>
+        `).join('');
+
+        modal.innerHTML = `
+            <div class="supabase-config-modal-card" style="width: 500px; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-card-header">
+                    <h3 style="display: flex; align-items: center; gap: 8px;">
+                        <span>${isEditing ? '✏️' : '✨'}</span>
+                        ${isEditing ? 'Editar Producto' : 'Nuevo Producto en el Menú'}
+                    </h3>
+                    <button class="btn-close-modal" onclick="document.getElementById('menu-item-editor-modal').remove()">&times;</button>
+                </div>
+                <div class="modal-card-body" style="overflow-y: auto; flex: 1;">
+                    <!-- card ID 1: Identidad visual -->
+                    <div class="visual-card-section">
+                        <span class="visual-card-title">Identidad del Producto</span>
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="emoji-display-box" id="editor-emoji-display" title="Emoji del producto">${currentEmoji}</div>
+                            <div class="form-group-modal" style="flex: 1; gap: 4px;">
+                                <label>Nombre del Producto</label>
+                                <input type="text" id="editor-nombre" value="${item ? item.nombre : ''}" placeholder="Ej: Pizza Súper Suprema" style="font-family: inherit; font-size: 0.9rem;" required />
+                            </div>
+                        </div>
+                        <span style="font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); margin-top: 4px;">Selecciona un Símbolo</span>
+                        <div class="menu-emoji-grid">
+                            ${emojiChipsHtml}
+                        </div>
+                    </div>
+
+                    <!-- card ID 2: Comercial -->
+                    <div class="visual-card-section">
+                        <span class="visual-card-title">Precio y Categoría</span>
+                        <div class="form-group-modal" style="gap: 4px;">
+                            <label>Precio de Venta ($)</label>
+                            <input type="number" id="editor-precio" value="${item ? item.precio : ''}" placeholder="0.00" step="0.01" style="font-family: inherit; font-size: 0.9rem;" required />
+                        </div>
+                        <div class="form-group-modal" style="gap: 4px; margin-top: 4px;">
+                            <label>Categoría</label>
+                            <input type="text" id="editor-categoria" value="${currentCategory}" placeholder="COMIDA" style="font-family: inherit; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 6px;" required />
+                            <div class="menu-category-chips">
+                                ${categoryChipsHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- card ID 3: Configuración avanzada -->
+                    <div class="visual-card-section">
+                        <span class="visual-card-title">Detalles Operativos</span>
+                        <div class="form-group-modal" style="gap: 4px;">
+                            <label>Descripción / Fórmula</label>
+                            <textarea id="editor-descripcion" placeholder="Notas de ingredientes o preparación..." style="font-family: inherit; font-size: 0.85rem; resize: vertical; min-height: 48px;">${item ? (item.descripcion || '') : ''}</textarea>
+                        </div>
+                        <div class="switch-container ${isPeso ? 'active' : ''}" style="margin-top: 4px;" id="editor-peso-container">
+                            <input type="checkbox" id="editor-es-peso" style="cursor: pointer; width: 16px; height: 16px;" ${isPeso ? 'checked' : ''} />
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.82rem; font-weight: 700; color: var(--color-text-main);">Se vende por PESO</span>
+                                <span style="font-size: 0.7rem; color: var(--color-text-muted);">Habilita el ingreso de peso exacto (Kg) al vender</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-card-footer">
+                    <button class="btn-modal-action btn-secondary-modal" onclick="document.getElementById('menu-item-editor-modal').remove()">Cancelar</button>
+                    <button class="btn-modal-action btn-success-modal" id="btn-save-menu-item" style="color: #1a1a1a;">ACEPTAR Y GUARDAR</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Configurar toggle de peso
+        const pesoContainer = document.getElementById('editor-peso-container');
+        const esPesoInput = document.getElementById('editor-es-peso');
+
+        const updatePesoClass = () => {
+            if (esPesoInput.checked) {
+                pesoContainer.classList.add('active');
+            } else {
+                pesoContainer.classList.remove('active');
+            }
         };
 
-        this.guardar(nuevoItem);
+        pesoContainer.addEventListener('click', (e) => {
+            if (e.target !== esPesoInput) {
+                esPesoInput.checked = !esPesoInput.checked;
+            }
+            updatePesoClass();
+        });
+
+        esPesoInput.addEventListener('change', () => {
+            updatePesoClass();
+        });
+
+        // Configurar guardado
+        document.getElementById('btn-save-menu-item').addEventListener('click', async () => {
+            const nombreVal = document.getElementById('editor-nombre').value.trim();
+            const precioVal = parseFloat(document.getElementById('editor-precio').value);
+            const categoriaVal = document.getElementById('editor-categoria').value.trim().toUpperCase();
+            const descripcionVal = document.getElementById('editor-descripcion').value.trim();
+
+            const selectedEmojiChip = document.querySelector('.menu-emoji-chip.selected');
+            const emojiVal = selectedEmojiChip ? selectedEmojiChip.getAttribute('data-emoji') : '🍔';
+
+            const isPesoVal = esPesoInput.checked;
+
+            if (!nombreVal) {
+                return Toast.error("Faltan datos", "El nombre es obligatorio");
+            }
+            if (isNaN(precioVal) || precioVal < 0) {
+                return Toast.error("Error de Formato", "El precio de venta debe ser un número positivo");
+            }
+            if (!categoriaVal) {
+                return Toast.error("Faltan datos", "La categoría es obligatoria");
+            }
+
+            const nuevoItem = {
+                id: item ? item.id : undefined,
+                nombre: nombreVal,
+                precio: precioVal,
+                categoria: categoriaVal,
+                descripcion: descripcionVal,
+                emoji: emojiVal,
+                unidad_medida: isPesoVal ? 'kg' : 'unid',
+                disponible: item ? item.disponible : true
+            };
+
+            document.getElementById('menu-item-editor-modal').remove();
+            await AdminMenuController.guardar(nuevoItem);
+        });
     },
     async guardar(item) {
         try {
