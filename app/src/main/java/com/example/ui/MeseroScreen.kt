@@ -46,9 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.*
-
 import com.example.data.*
-import com.example.ui.components.*
 import com.example.ui.PrintUtils
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
@@ -151,6 +149,8 @@ fun MeseroScreen(
     var platilloCategoriaTemp by remember { mutableStateOf("ALMUERZO") }
     var platilloDescripcionTemp by remember { mutableStateOf("") }
     var platilloEmojiTemp by remember { mutableStateOf("🍔") }
+    var platilloInventarioIdTemp by remember { mutableStateOf<Long?>(null) }
+    var platilloEsPesoTemp by remember { mutableStateOf(false) }
 
     var showNewCategoryDialog by remember { mutableStateOf(false) }
     var newCategoryNameTemp by remember { mutableStateOf("") }
@@ -377,30 +377,24 @@ fun MeseroScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Switch Role Pill Button!
-                        Surface(
-                            color = if (userRole == "cocinero") Color(0xFFE8DEF8) else Color(0xFFF7F2FA),
-                            border = BorderStroke(1.dp, if (userRole == "cocinero") Color(0xFF6750A4) else Color(0xFFCAC4D0)),
-                            shape = RoundedCornerShape(12.dp),
+                        // Cerrar Sesión (Return to Role Selector)
+                        IconButton(
+                            onClick = { 
+                                meseroNombre = ""
+                                sharedPrefs.edit().putString("mesero_nombre", "").apply()
+                                // No formal logout needed since we switched to local role selection
+                            },
                             modifier = Modifier
-                                .clickable { 
-                                    userRole = if (userRole == "mesero") "cocinero" else "mesero" 
-                                }
-                                .testTag("toggle_role_button")
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF7F2FA))
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = if (userRole == "cocinero") "🤵 Ver Mesero" else "🧑‍🍳 Ver Cocina",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (userRole == "cocinero") Color(0xFF6750A4) else Color(0xFF49454F)
-                                    )
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Logout,
+                                contentDescription = "Cerrar Sesión",
+                                tint = Color(0xFFB3261E),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         // Conexión State Badge
@@ -463,211 +457,147 @@ fun MeseroScreen(
             }
         },
         bottomBar = {
-            // Design HTML-compliant Footer Navigation Bar
-            Surface(
-                tonalElevation = 8.dp,
-                color = Color(0xFFF3EDF7),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
-                border = BorderStroke(1.dp, Color(0xFFE7E0EC))
-            ) {
-                Row(
+            if (userRole == "mesero") {
+                // Design HTML-compliant Footer Navigation Bar
+                Surface(
+                    tonalElevation = 8.dp,
+                    color = Color(0xFFF3EDF7),
                     modifier = Modifier
-                        .navigationBarsPadding()
                         .fillMaxWidth()
-                        .height(80.dp)
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                    border = BorderStroke(1.dp, Color(0xFFE7E0EC))
                 ) {
-                    // TAB 1: Inicio (Switches back to tables/menu selection context)
-                    val isInicioActive = activeTab == "mesas" || activeTab == "menu"
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .clickable { activeTab = "mesas" }
-                            .padding(vertical = 4.dp)
+                            .navigationBarsPadding()
+                            .fillMaxWidth()
+                            .height(80.dp)
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (isInicioActive) Color(0xFFE8DEF8) else Color.Transparent)
-                                .padding(horizontal = 20.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Inicio",
-                                tint = if (isInicioActive) Color(0xFF1D192B) else Color(0xFF49454F),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Text(
-                            text = "Inicio",
-                            fontSize = 11.sp,
-                            fontWeight = if (isInicioActive) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isInicioActive) Color(0xFF1D192B) else Color(0xFF49454F)
-                        )
-                    }
-
-                    // TAB 2: Ordenes (Active KDS)
-                    val isOrdenesActive = activeTab == "pedidos"
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { activeTab = "pedidos" }
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (isOrdenesActive) Color(0xFFE8DEF8) else Color.Transparent)
-                                .padding(horizontal = 20.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.List,
-                                contentDescription = "Ordenes en Cocina",
-                                tint = if (isOrdenesActive) Color(0xFF1D192B) else Color(0xFF49454F),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Text(
-                            text = "Cocina",
-                            fontSize = 11.sp,
-                            fontWeight = if (isOrdenesActive) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isOrdenesActive) Color(0xFF1D192B) else Color(0xFF49454F)
-                        )
-                    }
-
-                    // TAB 3: Historial (Past orders)
-                    val isHistorialActive = activeTab == "historial"
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { activeTab = "historial" }
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(if (isHistorialActive) Color(0xFFE8DEF8) else Color.Transparent)
-                                .padding(horizontal = 20.dp, vertical = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = "Historial",
-                                tint = if (isHistorialActive) Color(0xFF1D192B) else Color(0xFF49454F),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Text(
-                            text = "Historial",
-                            fontSize = 11.sp,
-                            fontWeight = if (isHistorialActive) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isHistorialActive) Color(0xFF1D192B) else Color(0xFF49454F)
-                        )
-                    }
-
-                    // TAB 4: Caja (Only for Cashier/Admin)
-                    if (userRole == "cajero" || userRole == "administrador") {
-                        val isCajaActive = activeTab == "caja"
+                        // TAB 1: Inicio (Switches back to tables/menu selection context)
+                        val isInicioActive = activeTab == "mesas" || activeTab == "menu"
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { activeTab = "caja" }
+                                .clickable { activeTab = "mesas" }
                                 .padding(vertical = 4.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isCajaActive) Color(0xFFE8DEF8) else Color.Transparent)
+                                    .background(if (isInicioActive) Color(0xFFE8DEF8) else Color.Transparent)
                                     .padding(horizontal = 20.dp, vertical = 4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Payments,
-                                    contentDescription = "Caja",
-                                    tint = if (isCajaActive) Color(0xFF1D192B) else Color(0xFF49454F),
+                                    imageVector = Icons.Default.Home,
+                                    contentDescription = "Inicio",
+                                    tint = if (isInicioActive) Color(0xFF1D192B) else Color(0xFF49454F),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
                             Text(
-                                text = "Caja",
+                                text = "Inicio",
                                 fontSize = 11.sp,
-                                fontWeight = if (isCajaActive) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isCajaActive) Color(0xFF1D192B) else Color(0xFF49454F)
+                                fontWeight = if (isInicioActive) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isInicioActive) Color(0xFF1D192B) else Color(0xFF49454F)
                             )
                         }
-                    }
-                    
-                    // TAB LOGÍSTICA (INVENTARIO)
-                    if (userRole == "cajero" || userRole == "administrador") {
-                        val isLogisticaActive = activeTab == "logistica"
+
+                        // TAB 2: Ordenes (Active KDS)
+                        val isOrdenesActive = activeTab == "pedidos"
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { activeTab = "logistica" }
+                                .clickable { activeTab = "pedidos" }
                                 .padding(vertical = 4.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isLogisticaActive) Color(0xFFE8DEF8) else Color.Transparent)
+                                    .background(if (isOrdenesActive) Color(0xFFE8DEF8) else Color.Transparent)
                                     .padding(horizontal = 20.dp, vertical = 4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Inventory2,
-                                    contentDescription = "Logística",
-                                    tint = if (isLogisticaActive) Color(0xFF1D192B) else Color(0xFF49454F),
+                                    imageVector = Icons.Default.List,
+                                    contentDescription = "Ordenes en Cocina",
+                                    tint = if (isOrdenesActive) Color(0xFF1D192B) else Color(0xFF49454F),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
                             Text(
-                                text = "Logística",
+                                text = "Cocina",
                                 fontSize = 11.sp,
-                                fontWeight = if (isLogisticaActive) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isLogisticaActive) Color(0xFF1D192B) else Color(0xFF49454F)
+                                fontWeight = if (isOrdenesActive) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isOrdenesActive) Color(0xFF1D192B) else Color(0xFF49454F)
                             )
                         }
-                    }
-                    
-                    // TAB 5: Perfil config trigger
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { showProfileDialog = true }
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Box(
+
+                        // TAB 3: Historial (Past orders)
+                        val isHistorialActive = activeTab == "historial"
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.Transparent)
-                                .padding(horizontal = 20.dp, vertical = 4.dp)
+                                .weight(1f)
+                                .clickable { activeTab = "historial" }
+                                .padding(vertical = 4.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Perfil del Mesero",
-                                tint = Color(0xFF49454F),
-                                modifier = Modifier.size(24.dp)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isHistorialActive) Color(0xFFE8DEF8) else Color.Transparent)
+                                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = "Historial",
+                                    tint = if (isHistorialActive) Color(0xFF1D192B) else Color(0xFF49454F),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = "Historial",
+                                fontSize = 11.sp,
+                                fontWeight = if (isHistorialActive) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isHistorialActive) Color(0xFF1D192B) else Color(0xFF49454F)
                             )
                         }
-                        Text(
-                            text = "Perfil",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF49454F)
-                        )
+
+                        // TAB 5: Perfil config trigger
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { showProfileDialog = true }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color.Transparent)
+                                    .padding(horizontal = 20.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Perfil del Mesero",
+                                    tint = Color(0xFF49454F),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Text(
+                                text = "Perfil",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF49454F)
+                            )
+                        }
                     }
                 }
             }
@@ -1766,259 +1696,11 @@ fun MeseroScreen(
                             }
                         }
                     }
-
-                    "logistica" -> {
-                        var invFilter by remember { mutableStateOf("TODOS") }
-                        var barcodeInput by remember { mutableStateOf("") }
-                        
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
-                        ) {
-                            item {
-                                Column {
-                                    Text(
-                                        text = "📦 Control de Inventario Central",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = Color(0xFF1D1B20)
-                                    )
-                                    Text(
-                                        text = "Gestión de licores, alimentos y carnes por código de barras",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF49454F)
-                                    )
-                                }
-                            }
-
-                            item {
-                                OutlinedTextField(
-                                    value = barcodeInput,
-                                    onValueChange = { input -> 
-                                        barcodeInput = input
-                                        if (input.length == 7) {
-                                            scope.launch {
-                                                val invItem = inventarioState.firstOrNull { it.barcode == input }
-                                                if (invItem != null) {
-                                                    snackbarHostState.showSnackbar("Escaneado: ${invItem.nombre} (Stock: ${invItem.stock})")
-                                                    barcodeInput = ""
-                                                }
-                                            }
-                                        }
-                                    },
-                                    label = { Text("Escaneo Manual / Cód. Barras") },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    leadingIcon = { Icon(Icons.Default.QrCodeScanner, null) },
-                                    placeholder = { Text("Ej. 7592001") },
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
-
-                            item {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    item {
-                                        FilterChip(
-                                            selected = invFilter == "TODOS",
-                                            onClick = { invFilter = "TODOS" },
-                                            label = { Text("Todos") }
-                                        )
-                                    }
-                                    InventarioCategoria.values().forEach { cat ->
-                                        item {
-                                            FilterChip(
-                                                selected = invFilter == cat.name,
-                                                onClick = { invFilter = cat.name },
-                                                label = { Text(cat.etiqueta) }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            val filteredInv = if (invFilter == "TODOS") inventarioState else inventarioState.filter { it.categoria.name == invFilter }
-
-                            if (filteredInv.isEmpty()) {
-                                item { 
-                                    Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                                        Text("No se encontraron registros", color = Color.Gray)
-                                    }
-                                }
-                            } else {
-                                items(filteredInv) { item ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(16.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        border = BorderStroke(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(item.nombre, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                                Text(item.categoria.etiqueta, fontSize = 11.sp, color = Color.Gray)
-                                                Text("Cód: ${item.barcode ?: "---"}", fontSize = 11.sp, color = Color.Gray)
-                                            }
-                                            
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                val outOfStock = item.stock <= 0
-                                                Text(
-                                                    text = "${item.stock} ${item.unidadMedida}",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 18.sp,
-                                                    color = if (outOfStock) Color.Red else Color(0xFF137333)
-                                                )
-                                                if (outOfStock) {
-                                                    Text("AGOTADO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Red)
-                                                }
-                                            }
-                                            
-                                            IconButton(onClick = {
-                                                scope.launch {
-                                                    repository.updateInventarioItem(item.copy(stock = item.stock + 1))
-                                                }
-                                            }) {
-                                                Icon(Icons.Default.AddCircle, null, tint = Color(0xFF6750A4))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    "caja" -> {
-                        val cajeroOrders = pedidosState.filter { ped ->
-                            ped.estado == "listo" || ped.estado == "entregado"
-                        }.sortedByDescending { it.id }
-
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
-                            contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp)
-                        ) {
-                            item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "💰 Caja / Facturación",
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = Color(0xFF1D1B20)
-                                        )
-                                        Text(
-                                            text = "Procesa pagos y genera tickets para órdenes listas",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color(0xFF49454F)
-                                        )
-                                    }
-                                    
-                                    val context = LocalContext.current
-                                    IconButton(
-                                        onClick = {
-                                            val reportHeaders = listOf("ID", "Mesa", "Items", "Estado", "Total USD")
-                                            val reportRows = cajeroOrders.map { ped ->
-                                                listOf(
-                                                    ped.id?.toString() ?: "",
-                                                    ped.mesa,
-                                                    ped.items.joinToString(", ") { "${it.cantidad}x ${it.producto}" },
-                                                    ped.estado,
-                                                    "$${String.format("%.2f", ped.total)}"
-                                                )
-                                            }
-                                            val totalUsd = cajeroOrders.sumOf { it.total }
-                                            val html = PrintUtils.generateAdminReportHtml("REPORTE DE CAJA", reportHeaders, reportRows, totalUsd, tasaCambio.toDouble())
-                                            PrintUtils.printReport(context, html, "Reporte_Caja")
-                                        }
-                                    ) {
-                                        Icon(Icons.Default.PictureAsPdf, "Exportar PDF", tint = Color(0xFF6750A4))
-                                    }
-                                }
-                            }
-
-                            if (cajeroOrders.isEmpty()) {
-                                item { 
-                                    Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                                        Text("No hay órdenes listas para cobrar", color = Color.Gray)
-                                    }
-                                }
-                            } else {
-                                items(cajeroOrders) { ped ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(16.dp),
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                                        border = BorderStroke(1.dp, Color(0xFFCAC4D0))
-                                    ) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text(text = ped.mesa, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                                                Text(text = "#${ped.id}", style = MaterialTheme.typography.labelSmall)
-                                            }
-                                            
-                                            Spacer(Modifier.height(8.dp))
-                                            
-                                            ped.items.forEach { itm ->
-                                                Text("${itm.cantidad}x ${itm.producto}", fontSize = 14.sp)
-                                            }
-                                            
-                                            Divider(Modifier.padding(vertical = 8.dp))
-                                            
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.Bottom
-                                            ) {
-                                                Column {
-                                                    Text("USD $${String.format("%.2f", ped.total)}", fontWeight = FontWeight.Bold)
-                                                    Text("VES ${String.format("%.2f", ped.total * tasaCambio)}", color = Color(0xFF137333), fontWeight = FontWeight.Bold)
-                                                }
-                                                
-                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    IconButton(onClick = {
-                                                        val html = PrintUtils.generateReceiptHtml(ped.mesa, ped.items, ped.total, tasaCambio.toDouble())
-                                                        PrintUtils.printTicket(context, html)
-                                                    }) {
-                                                        Icon(Icons.Default.Print, "Imprimir Ticket", tint = Color(0xFF6750A4))
-                                                    }
-                                                    
-                                                    Button(
-                                                        onClick = {
-                                                            ped.id?.let { id ->
-                                                                repository.actualizarEstadoPedido(id, "pagado") { exito, _ ->
-                                                                    if (exito) {
-                                                                        scope.launch { snackbarHostState.showSnackbar("Pago registrado: ${ped.mesa}") }
-                                                                    }
-                                                                }
-                                                            }
-                                                        },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF137333))
-                                                    ) {
-                                                        Text("COBRAR")
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
     }
+}
 
     // --- WEIGHT SELECTION DIALOG (Venta por Peso) ---
     if (showWeightDialog && platilloParaPeso != null) {
@@ -2172,94 +1854,18 @@ fun MeseroScreen(
 
                     Divider(color = Color(0xFFCAC4D0).copy(alpha = 0.5f))
 
-                    // TASA DEL DIA (Admin/Cajero only can edit)
-                    Text(
-                        text = "ADMINISTRACIÓN FINANCIERA",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF49454F)
-                    )
-                    
-                    if (userRole == "cajero" || userRole == "administrador") {
-                        OutlinedTextField(
-                            value = tasaCambio.toString(),
-                            onValueChange = { 
-                                val newVal = it.toFloatOrNull()
-                                if (newVal != null) {
-                                    tasaCambio = newVal
-                                    sharedPrefs.edit().putFloat("tasa_cambio", newVal).apply()
-                                }
-                            },
-                            label = { Text("Tasa del Día (VES/USD)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            prefix = { Text("VES ") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
+                    // Tasa del día simple display
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8DEF8))
+                    ) {
+                        Text(
+                            "Tasa del día: ${String.format("%.2f", tasaCambio)} VES/USD",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6750A4)
                         )
-                        
-                        if (userRole == "administrador") {
-                            val context = LocalContext.current
-                            Spacer(Modifier.height(8.dp))
-                            Button(
-                                onClick = {
-                                    val reportHeaders = listOf("Fecha", "ID", "Mesa", "Mesero", "Estado", "Total USD")
-                                    val reportRows = pedidosState.map { ped ->
-                                        listOf(
-                                            ped.creado_en ?: "",
-                                            ped.id?.toString() ?: "",
-                                            ped.mesa,
-                                            ped.mesero ?: "",
-                                            ped.estado,
-                                            "$${String.format("%.2f", ped.total)}"
-                                        )
-                                    }
-                                    val totalSales = pedidosState.sumOf { it.total }
-                                    val html = PrintUtils.generateAdminReportHtml("AUDITORÍA DE VENTAS", reportHeaders, reportRows, totalSales, tasaCambio.toDouble())
-                                    PrintUtils.printReport(context, html, "Auditoria_Ventas")
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1D1B20)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.PictureAsPdf, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("EXPORTAR AUDITORÍA A PDF")
-                            }
-
-                            Spacer(Modifier.height(8.dp))
-                            Button(
-                                onClick = {
-                                    val reportHeaders = listOf("Descripción", "Monto USD", "Monto VES")
-                                    val totalSales = pedidosState.sumOf { it.total }
-                                    val reportRows = listOf(
-                                        listOf("Ventas Netas (Hoy)", "$${String.format("%.2f", totalSales)}", "VES ${String.format("%.2f", totalSales * tasaCambio)}"),
-                                        listOf("Pedidos Procesados", pedidosState.size.toString(), "-")
-                                    )
-                                    val html = PrintUtils.generateAdminReportHtml("CIERRE DE CAJA DIARIO", reportHeaders, reportRows, totalSales, tasaCambio.toDouble())
-                                    PrintUtils.printReport(context, html, "Caja_Diaria")
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF137333)),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.Calculate, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("EXPORTAR CIERRE DE CAJA A PDF")
-                            }
-                        }
-                    } else {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F4EA))
-                        ) {
-                            Text(
-                                "Tasa del día: ${String.format("%.2f", tasaCambio)} VES/USD",
-                                modifier = Modifier.padding(12.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF137333)
-                            )
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -2536,92 +2142,218 @@ fun MeseroScreen(
         AlertDialog(
             onDismissRequest = { showEditPlatilloDialog = false },
             title = {
-                Text(
-                    text = if (editingPlatillo == null) "Crear Nuevo Platillo" else "Editar Platillo",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1D1B20)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (editingPlatillo == null) Icons.Default.Add else Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = Color(0xFF6750A4)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = if (editingPlatillo == null) "Crear Nuevo Platillo" else "Editar Platillo",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1D1B20)
+                    )
+                }
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .verticalScroll(androidx.compose.foundation.rememberScrollState())
                 ) {
-                    // Nombre input
-                    OutlinedTextField(
-                        value = platilloNombreTemp,
-                        onValueChange = { platilloNombreTemp = it },
-                        label = { Text("Nombre del Platillo") },
-                        placeholder = { Text("Ej. Papas con Queso") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-
-                    // Precio & Emoji Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // SECCIÓN 1: Identidad Visual
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFEADDFF))
                     ) {
-                        OutlinedTextField(
-                            value = platilloPrecioTemp,
-                            onValueChange = { platilloPrecioTemp = it },
-                            label = { Text("Precio ($)") },
-                            placeholder = { Text("0.00") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                            modifier = Modifier.weight(1.5f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = platilloEmojiTemp,
-                            onValueChange = { platilloEmojiTemp = it },
-                            label = { Text("Emoji") },
-                            placeholder = { Text("🍔") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                    }
-
-                    // Categoría selector
-                    Text(
-                        text = "Seleccionar Categoría",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFF49454F)
-                    )
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        customCategories.forEach { cat ->
-                            val isSel = platilloCategoriaTemp == cat
-                            FilterChip(
-                                selected = isSel,
-                                onClick = { platilloCategoriaTemp = cat },
-                                label = { Text(cat, fontSize = 11.sp) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF6750A4),
-                                    selectedLabelColor = Color.White
-                                )
-                            )
+                        Column(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                             Text("IDENTIDAD DEL PLATO", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
+                             
+                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                 Box(
+                                     modifier = Modifier
+                                         .size(64.dp)
+                                         .clip(RoundedCornerShape(12.dp))
+                                         .background(Color.White)
+                                         .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(12.dp)),
+                                     contentAlignment = Alignment.Center
+                                 ) {
+                                     Text(platilloEmojiTemp, fontSize = 32.sp)
+                                 }
+                                 
+                                 OutlinedTextField(
+                                     value = platilloNombreTemp,
+                                     onValueChange = { platilloNombreTemp = it },
+                                     label = { Text("Nombre del Plato") },
+                                     placeholder = { Text("Ej. Ceviche Especial") },
+                                     singleLine = true,
+                                     modifier = Modifier.weight(1f),
+                                     shape = RoundedCornerShape(12.dp)
+                                 )
+                             }
+                             
+                             Text("Símbolo sugerido:", style = MaterialTheme.typography.labelSmall, color = Color(0xFF49454F))
+                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                 val suggestedEmojis = listOf("🍔", "🍕", "🌮", "🥗", "🥪", "🍰", "🍵", "🍳", "🍗", "🍟", "🥣", "🍦", "🍹", "🥩", "🍷", "🍺", "☕")
+                                 items(suggestedEmojis) { emoji ->
+                                     Box(
+                                         modifier = Modifier
+                                             .size(40.dp)
+                                             .clip(CircleShape)
+                                             .background(if (platilloEmojiTemp == emoji) Color(0xFFE8DEF8) else Color.White)
+                                             .clickable { platilloEmojiTemp = emoji }
+                                             .border(1.dp, if (platilloEmojiTemp == emoji) Color(0xFF6750A4) else Color(0xFFCAC4D0), CircleShape),
+                                         contentAlignment = Alignment.Center
+                                     ) {
+                                         Text(emoji, fontSize = 20.sp)
+                                     }
+                                 }
+                             }
                         }
                     }
 
-                    // Descripción input
-                    OutlinedTextField(
-                        value = platilloDescripcionTemp,
-                        onValueChange = { platilloDescripcionTemp = it },
-                        label = { Text("Fórmula / Notas de Receta") },
-                        placeholder = { Text("Ej. Aderezo cheddar derretido, cebollín picado.") },
-                        modifier = Modifier.fillMaxWidth(),
-                        maxLines = 3,
-                        shape = RoundedCornerShape(8.dp)
-                    )
+                    // SECCIÓN 2: Comercial
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F2FA)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFEADDFF))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                             Text("PRECIO Y CATEGORÍA", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
+                             
+                             OutlinedTextField(
+                                 value = platilloPrecioTemp,
+                                 onValueChange = { platilloPrecioTemp = it },
+                                 label = { Text("Precio de Venta") },
+                                 prefix = { Text("$ ", color = Color(0xFF137333), fontWeight = FontWeight.Bold) },
+                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                 modifier = Modifier.fillMaxWidth(),
+                                 shape = RoundedCornerShape(12.dp),
+                                 singleLine = true
+                             )
+
+                             Text("Categoría del Menú", style = MaterialTheme.typography.labelSmall, color = Color(0xFF49454F))
+                             FlowRow(
+                                 modifier = Modifier.fillMaxWidth(),
+                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
+                             ) {
+                                 customCategories.forEach { cat ->
+                                     val isSel = platilloCategoriaTemp == cat
+                                     FilterChip(
+                                         selected = isSel,
+                                         onClick = { platilloCategoriaTemp = cat },
+                                         label = { Text(cat, fontSize = 11.sp) },
+                                         leadingIcon = if (isSel) { { Icon(Icons.Default.Check, null, modifier = Modifier.size(14.dp)) } } else null,
+                                         shape = RoundedCornerShape(8.dp),
+                                         colors = FilterChipDefaults.filterChipColors(
+                                             selectedContainerColor = Color(0xFF6750A4),
+                                             selectedLabelColor = Color.White,
+                                             selectedLeadingIconColor = Color.White
+                                         )
+                                     )
+                                 }
+                             }
+                        }
+                    }
+
+                    // SECCIÓN 3: Configuración
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("DETALLES OPERATIVOS", style = MaterialTheme.typography.labelSmall, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+                            
+                            OutlinedTextField(
+                                value = platilloDescripcionTemp,
+                                onValueChange = { platilloDescripcionTemp = it },
+                                label = { Text("Descripción (Opcional)") },
+                                placeholder = { Text("Ej. Pan artesanal, 150g de carne...") },
+                                modifier = Modifier.fillMaxWidth(),
+                                maxLines = 2,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            
+                            // Inventory link
+                            var expandedInv by remember { mutableStateOf(false) }
+                            val selectedInv = inventarioState.firstOrNull { it.id == platilloInventarioIdTemp }
+                            
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Vínculo con Inventario", style = MaterialTheme.typography.labelSmall, color = Color(0xFF49454F))
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    Surface(
+                                        onClick = { expandedInv = true },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, if (selectedInv != null) Color(0xFF137333) else Color(0xFFCAC4D0)),
+                                        color = if (selectedInv != null) Color(0xFFE6F4EA) else Color.White
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = if (selectedInv != null) Icons.Default.Inventory else Icons.Default.Link,
+                                                contentDescription = null,
+                                                tint = if (selectedInv != null) Color(0xFF137333) else Color(0xFF49454F),
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = selectedInv?.let { "${it.nombre} (${it.stock})" } ?: "Vincular Insumo...",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = if (selectedInv != null) Color(0xFF137333) else Color(0xFF49454F),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Icon(Icons.Default.ArrowDropDown, null, tint = Color(0xFF49454F))
+                                        }
+                                    }
+                                    
+                                    DropdownMenu(
+                                        expanded = expandedInv,
+                                        onDismissRequest = { expandedInv = false },
+                                        modifier = Modifier.fillMaxWidth(0.7f)
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("(Ninguno)", color = Color.Gray) },
+                                            onClick = { platilloInventarioIdTemp = null; expandedInv = false }
+                                        )
+                                        inventarioState.forEach { inv ->
+                                            DropdownMenuItem(
+                                                text = { Text("${inv.nombre} [${inv.stock} ${inv.unidadMedida}]") },
+                                                onClick = { platilloInventarioIdTemp = inv.id; expandedInv = false }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (platilloEsPesoTemp) Color(0xFFF3EDF7) else Color.Transparent)
+                                    .clickable { platilloEsPesoTemp = !platilloEsPesoTemp }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Checkbox(
+                                    checked = platilloEsPesoTemp,
+                                    onCheckedChange = { platilloEsPesoTemp = it },
+                                    colors = CheckboxDefaults.colors(checkedColor = Color(0xFF6750A4))
+                                )
+                                Text(
+                                    "Se vende por PESO (Kg / Gr)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (platilloEsPesoTemp) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -2629,15 +2361,11 @@ fun MeseroScreen(
                     onClick = {
                         val parsedPrecio = platilloPrecioTemp.toDoubleOrNull()
                         if (platilloNombreTemp.isBlank()) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("El nombre no puede estar vacío")
-                            }
+                            scope.launch { snackbarHostState.showSnackbar("Nombre requerido") }
                             return@Button
                         }
                         if (parsedPrecio == null || parsedPrecio < 0.0) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("Ingresa un precio válido")
-                            }
+                            scope.launch { snackbarHostState.showSnackbar("Precio inválido") }
                             return@Button
                         }
 
@@ -2646,44 +2374,36 @@ fun MeseroScreen(
                             precio = parsedPrecio,
                             categoria = platilloCategoriaTemp,
                             descripcion = platilloDescripcionTemp.trim(),
-                            emoji = if (platilloEmojiTemp.isBlank()) "🍔" else platilloEmojiTemp.trim()
+                            emoji = if (platilloEmojiTemp.isBlank()) "🍔" else platilloEmojiTemp.trim(),
+                            esPorPeso = platilloEsPesoTemp,
+                            inventarioDependienteId = platilloInventarioIdTemp
                         )
 
                         val original = editingPlatillo
                         if (original == null) {
-                            // Verify uniqueness
                             if (menuPlatillos.any { it.nombre.equals(edited.nombre, ignoreCase = true) }) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Ya existe un platillo con ese nombre")
-                                }
+                                scope.launch { snackbarHostState.showSnackbar("El plato ya existe") }
                                 return@Button
                             }
                             menuPlatillos.add(edited)
-                            scope.launch {
-                                snackbarHostState.showSnackbar("¡Platillo creado con éxito! 🍕🌱")
-                            }
+                            scope.launch { snackbarHostState.showSnackbar("¡Plato guardado!") }
                         } else {
-                            // Find and update item by name or reference
                             val targetIndex = menuPlatillos.indexOfFirst { it.nombre == original.nombre }
                             if (targetIndex != -1) {
                                 menuPlatillos[targetIndex] = edited
-                                // Also update matching items in the current comanda/cart so lines don't break
                                 val cartIndex = carrito.indexOfFirst { it.platillo.nombre == original.nombre }
-                                if (cartIndex != -1) {
-                                    carrito[cartIndex] = carrito[cartIndex].copy(platillo = edited)
-                                }
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("¡Platillo modificado con éxito!")
-                                }
+                                if (cartIndex != -1) carrito[cartIndex] = carrito[cartIndex].copy(platillo = edited)
+                                scope.launch { snackbarHostState.showSnackbar("¡Plato actualizado!") }
                             }
                         }
                         saveMenuToPrefs(sharedPrefs, menuPlatillos)
                         showEditPlatilloDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
-                    Text(if (editingPlatillo == null) "Crear" else "Guardar", fontWeight = FontWeight.Bold)
+                    Text(if (editingPlatillo == null) "GUARDAR PLATILLO" else "ACTUALIZAR DATOS", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2693,31 +2413,28 @@ fun MeseroScreen(
                 ) {
                     val original = editingPlatillo
                     if (original != null) {
-                        // Delete Button!
                         TextButton(
                             onClick = {
-                                // Delete the item
                                 menuPlatillos.removeIf { it.nombre == original.nombre }
                                 saveMenuToPrefs(sharedPrefs, menuPlatillos)
-                                // Also remove from current cart/comanda
                                 carrito.removeIf { it.platillo.nombre == original.nombre }
                                 showEditPlatilloDialog = false
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Platillo eliminado de la carta")
-                                }
+                                scope.launch { snackbarHostState.showSnackbar("Plato eliminado") }
                             },
                             colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB3261E))
                         ) {
-                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
                             Text("Eliminar")
                         }
                     }
                     TextButton(onClick = { showEditPlatilloDialog = false }) {
-                        Text("Cancelar")
+                        Text("Cancelar", color = Color(0xFF49454F))
                     }
                 }
-            }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = Color.White
         )
     }
 
@@ -2725,17 +2442,24 @@ fun MeseroScreen(
     if (showNewCategoryDialog) {
         AlertDialog(
             onDismissRequest = { showNewCategoryDialog = false },
-            title = { Text("Nueva Categoría 📂", fontWeight = FontWeight.Bold) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Category, null, tint = Color(0xFF6750A4))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Nueva Categoría", fontWeight = FontWeight.Bold)
+                }
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Crea una sección (ej: Desayuno, Almuerzo, Parrilla, Cocteles):", fontSize = 13.sp)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Clasifica tus productos para encontrarlos más rápido en la carta.", fontSize = 13.sp, color = Color(0xFF49454F))
                     OutlinedTextField(
                         value = newCategoryNameTemp,
                         onValueChange = { newCategoryNameTemp = it.uppercase() },
-                        placeholder = { Text("DESAYUNO") },
+                        label = { Text("Nombre de la Categoría") },
+                        placeholder = { Text("Ej: PARRILLAS, COCTELES") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             },
@@ -2752,16 +2476,19 @@ fun MeseroScreen(
                             }
                         }
                     },
-                    enabled = newCategoryNameTemp.isNotBlank()
+                    enabled = newCategoryNameTemp.isNotBlank(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
                 ) {
-                    Text("Crear")
+                    Text("CREAR CATEGORÍA", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showNewCategoryDialog = false }) { Text("Cancelar") }
-            }
+                TextButton(onClick = { showNewCategoryDialog = false }) { Text("Cancelar", color = Color(0xFF49454F)) }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = Color.White
         )
     }
-}
 }
 

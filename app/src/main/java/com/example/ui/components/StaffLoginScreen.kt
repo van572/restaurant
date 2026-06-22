@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,63 +55,43 @@ fun StaffLoginScreen(
                     color = Color(0xFF6750A4)
                 )
                 Text(
-                    text = "Inicia sesión para acceder al sistema",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF49454F)
+                    text = "Seleccione su rol",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color(0xFF49454F),
+                    fontWeight = FontWeight.Medium
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // BOTÓN MESERO
+                Button(
+                    onClick = { onLoginSuccess("Mesero General", "mesero") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🤵 MODO MESERO", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                        Text("Toma de pedidos y gestión de mesas", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Contraseña") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                if (localError != null) {
-                    Text(
-                        text = localError!!,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        localError = null
-                        scope.launch {
-                            val success = repository.login(email, password)
-                            if (success) {
-                                val role = if (email.lowercase().contains("cocina")) "cocinero" else "mesero"
-                                onLoginSuccess(email, role)
-                            } else {
-                                localError = "Error de autenticación. Verifica tus credenciales."
-                            }
-                        }
-                    },
+                // BOTÓN COCINA
+                OutlinedButton(
+                    onClick = { onLoginSuccess("Chef de Cocina", "cocinero") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !isAuthLoading && email.isNotBlank() && password.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                        .height(80.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(2.dp, Color(0xFF6750A4))
                 ) {
-                    if (isAuthLoading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    } else {
-                        Text("ENTRAR AL SISTEMA", fontWeight = FontWeight.Bold)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🧑‍🍳 MODO COCINA", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = Color(0xFF6750A4))
+                        Text("Gestión de KDS y preparación", style = MaterialTheme.typography.labelSmall, color = Color(0xFF49454F))
                     }
                 }
             }
