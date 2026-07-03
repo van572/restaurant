@@ -496,9 +496,17 @@
                 <h2>📊 Consolidación Financiera Diaria</h2>
                 <p>Auditoría y conciliación de caja en tiempo real. Monitorea los ingresos generados por los meseros y métodos de pago.</p>
             </div>
-            <button class="btn-exportar-csv" onclick="AuditoriaController.exportarCSV()">
-                <span>📥</span> Exportar Archivo CSV
-            </button>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <button class="btn-exportar-csv" onclick="AuditoriaController.exportarCSV()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;">
+                    <span>📥</span> Exportar Archivo CSV
+                </button>
+                <button class="btn-exportar-pdf-diario" onclick="AuditoriaController.generarReportePDF('diario')" style="background: #10B981; color: white; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);">
+                    <span>📅</span> Reporte Diario PDF
+                </button>
+                <button class="btn-exportar-pdf-mensual" onclick="AuditoriaController.generarReportePDF('completo')" style="background: var(--color-primary); color: white; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s; box-shadow: 0 4px 15px rgba(255, 107, 0, 0.25);">
+                    <span>📄</span> Reporte Completo PDF
+                </button>
+            </div>
         </section>
 
         <!-- SECCIÓN DE GRÁFICOS (NUEVO) -->
@@ -621,6 +629,8 @@
     <!-- INYECCIÓN COMPARTIDA DE DATOS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script src="assets/js/supabase-client.js"></script>
     <script src="assets/js/auth-guard.js" data-module="config"></script>
     <script src="assets/js/app.js"></script>

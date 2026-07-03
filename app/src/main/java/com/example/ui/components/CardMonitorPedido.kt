@@ -92,7 +92,7 @@ fun CardMonitorPedido(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            val itemsString = pedido.items.joinToString(", ") { "${it.cantidad}x ${it.producto}" }
+            val itemsString = pedido.items.joinToString(", ") { "${it.cantidad.formatQty()}x ${it.producto}" }
             Text(
                 text = "Platillos: $itemsString",
                 style = MaterialTheme.typography.bodySmall,

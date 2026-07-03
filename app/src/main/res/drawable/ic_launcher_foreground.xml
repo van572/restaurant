@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/restflow_logo_foreground_1781876579753"
+        android:drawable="@drawable/img_app_icon_1783041884974"
         android:gravity="center" />
 </layer-list>

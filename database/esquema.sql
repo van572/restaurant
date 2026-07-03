@@ -164,6 +164,9 @@ VALUES
   ('Hamburguesa Premium', 12.50, 'COMIDA', 'Jugosa carne de res con queso derretido, lechuga, tomate y carnes seleccionadas.', '🍔', TRUE),
   ('Pizza Personal Pepperoni', 15.00, 'COMIDA', 'Deliciosa masa artesanal dorada con abundante salsa de tomate, mozzarella y rodajas de pepperoni.', '🍕', TRUE),
   ('Tacos de Res (x3)', 8.50, 'COMIDA', 'Tres tacos crujientes servidos con carne picada de primera, salsa de tomate picante y cilantro fresco.', '🌮', TRUE),
+  ('Parrilla Familiar (al Peso)', 24.00, 'COMIDA', 'Exquisito surtido de carnes premium cocidas a la brasa, servido por kilo o gramo.', '🥩', TRUE),
+  ('Chicharrón Crujiente (al Peso)', 18.00, 'COMIDA', 'Tradicional chicharrón de cerdo bien crujiente con arepitas, servido por kilo o gramo.', '🥓', TRUE),
+  ('Costillas de Cerdo (al Peso)', 21.00, 'COMIDA', 'Costillas de cerdo ahumadas con glaseado especial BBQ de la casa, servidas por kilo o gramo.', '🍖', TRUE),
   ('Papas Fritas', 4.00, 'ACOMPANAMIENTO', 'Crujientes y doradas, ligeramente sazonadas con sal marina.', '🍟', TRUE),
   ('Alitas BBQ', 9.50, 'ACOMPANAMIENTO', 'Alitas de pollo glaseadas con una adictiva salsa barbacoa dulce y ahumada.', '🍗', TRUE),
   ('Té Frío Limón', 3.00, 'BEBIDA', 'Té natural helado con jugo de limón fresco y endulzado.', '🍹', TRUE),
@@ -228,5 +231,8 @@ VALUES
 ('7502000', 'Vino Tinto Reserva', 'licores', 'unid', 450.00, 15, 3),
 ('1001', 'Corte Rib Eye Prime', 'carnes', 'kg', 580.00, 12.500, 2.000),
 ('1002', 'Filete de Res', 'carnes', 'kg', 420.00, 8.200, 2.000),
+('1003', 'Parrilla Real (Familiar)', 'carnes', 'kg', 590.00, 15.000, 2.000),
+('1004', 'Chicharrón Crujiente', 'carnes', 'kg', 390.00, 20.000, 3.000),
+('1005', 'Costillas de Cerdo Ahumadas', 'carnes', 'kg', 480.00, 25.000, 4.000),
 ('2001', 'Pan Artesanal', 'alimentos', 'unid', 45.00, 30, 10)
 ON CONFLICT (codigo_barras) DO NOTHING;

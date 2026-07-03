@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ItemPedido(
     val producto: String,
-    val cantidad: Int,
+    val cantidad: Double,
     val precio: Double,
     val notas: String = ""
 )
@@ -35,12 +35,9 @@ data class MenuPlatillo(
 
 @Serializable
 enum class CategoriaPlatillo(val etiqueta: String) {
-    DESAYUNO("Desayuno 🍳"),
-    ALMUERZO("Almuerzo 🍲"),
-    CENA("Cena 🌙"),
+    COMIDA("Comida 🍔"),
     BEBIDA("Bebidas 🍹"),
-    ACOMPANAMIENTO("Extras 🍟"),
-    POSTRE("Postres 🍰")
+    ACOMPANAMIENTO("Extras 🍟")
 }
 
 @Serializable
@@ -64,9 +61,17 @@ data class InventarioItem(
 @Serializable
 data class ItemCart(
     val platillo: MenuPlatillo,
-    val cantidad: Int,
+    val cantidad: Double,
     val notas: String = ""
 )
+
+fun Double.formatQty(): String {
+    return if (this % 1.0 == 0.0) {
+        String.format(java.util.Locale.US, "%.0f", this)
+    } else {
+        String.format(java.util.Locale.US, "%.3f", this)
+    }
+}
 
 fun ItemCart.toItemPedido() = ItemPedido(
     producto = this.platillo.nombre,
@@ -76,11 +81,13 @@ fun ItemCart.toItemPedido() = ItemPedido(
 )
 
 val MENU_ITEMS = listOf(
-    MenuPlatillo("Parrilla Mixta", 25.00, "ALMUERZO", "Solomo, pollo y chorizo.", "🥩", esPorPeso = true, inventarioDependienteId = 3),
-    MenuPlatillo("Hamburguesa Premium", 12.50, "CENA", "Queso cheddar, tocino, aderezo gourmet.", "🍔", inventarioDependienteId = 3),
-    MenuPlatillo("Pollo a la Brasa", 15.00, "ALMUERZO", "Pollo entero con papas.", "🍗", inventarioDependienteId = 4),
-    MenuPlatillo("Tacos de Res (x3)", 8.50, "CENA", "Cebollitas asadas, cilantro, salsas.", "🌮", inventarioDependienteId = 3),
-    MenuPlatillo("Papas Fritas", 4.00, "ACOMPAÑAMIENTO", "Doraditas y crujientes con sal marina.", "🍟"),
+    MenuPlatillo("Parrilla Familiar (al Peso)", 24.00, "COMIDA", "Exquisito surtido de carnes premium cocidas a la brasa, servido por kilo o gramo.", "🥩", esPorPeso = true, inventarioDependienteId = 3),
+    MenuPlatillo("Chicharrón Crujiente (al Peso)", 18.00, "COMIDA", "Tradicional chicharrón de cerdo bien crujiente con arepitas, servido por kilo o gramo.", "🥓", esPorPeso = true, inventarioDependienteId = 3),
+    MenuPlatillo("Costillas de Cerdo (al Peso)", 21.00, "COMIDA", "Costillas de cerdo ahumadas con glaseado especial BBQ de la casa, servidas por kilo o gramo.", "🍖", esPorPeso = true, inventarioDependienteId = 3),
+    MenuPlatillo("Hamburguesa Premium", 12.50, "COMIDA", "Queso cheddar, tocino, aderezo gourmet.", "🍔", inventarioDependienteId = 3),
+    MenuPlatillo("Pollo a la Brasa", 15.00, "COMIDA", "Pollo entero con papas.", "🍗", inventarioDependienteId = 4),
+    MenuPlatillo("Tacos de Res (x3)", 8.50, "COMIDA", "Cebollitas asadas, cilantro, salsas.", "🌮", inventarioDependienteId = 3),
+    MenuPlatillo("Papas Fritas", 4.00, "ACOMPANAMIENTO", "Doraditas y crujientes con sal marina.", "🍟"),
     MenuPlatillo("Cerveza Polar Bottle", 3.00, "BEBIDA", "Cerveza de botella fría.", "🍺", inventarioDependienteId = 2),
     MenuPlatillo("Whisky 18 On The Rocks", 15.00, "BEBIDA", "Servicio de Whisky.", "🥃", inventarioDependienteId = 1),
     MenuPlatillo("Té Frío Limón", 3.00, "BEBIDA", "Infusión de té negro con zumo fresco.", "🍹"),
@@ -100,7 +107,7 @@ fun saveCategoriesToPrefs(sharedPrefs: android.content.SharedPreferences, catego
 }
 
 fun loadCategoriesFromPrefs(sharedPrefs: android.content.SharedPreferences): List<String> {
-    val raw = sharedPrefs.getString("custom_categories", null) ?: return listOf("DESAYUNO", "ALMUERZO", "CENA", "BEBIDA", "ACOMPAÑAMIENTO", "POSTRE")
+    val raw = sharedPrefs.getString("custom_categories", null) ?: return listOf("COMIDA", "BEBIDA", "ACOMPANAMIENTO")
     return if (raw.isBlank()) emptyList() else raw.split(",")
 }
 

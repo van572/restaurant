@@ -78,6 +78,10 @@ fun MeseroScreen(
     }
     var isLoggedIn by remember { mutableStateOf(meseroNombre.isNotBlank()) }
     var tasaCambio by remember { mutableFloatStateOf(sharedPrefs.getFloat("tasa_cambio", 45.5f)) }
+    var showHistorialFiscalDialog by remember { mutableStateOf<com.example.data.Pedido?>(null) }
+    var histRazonSocial by remember { mutableStateOf("") }
+    var histRif by remember { mutableStateOf("") }
+    var histDireccion by remember { mutableStateOf("") }
     var userEmail by remember { mutableStateOf("") }
     var userPass by remember { mutableStateOf("") }
     var isAuthLoading by remember { mutableStateOf(false) }
@@ -85,7 +89,8 @@ fun MeseroScreen(
     var showWelcomeDialog by remember { mutableStateOf(false) }
     var welcomeNombreTemp by remember { mutableStateOf("") }
     var mesaSeleccionada by remember { mutableStateOf("Mesa 1") }
-    var categoriaSeleccionada by remember { mutableStateOf("ALMUERZO") }
+    var clienteNombre by remember { mutableStateOf("") }
+    var categoriaSeleccionada by remember { mutableStateOf("Todos") }
     var menuSearchQuery by remember { mutableStateOf("") }
     
     val customCategories = remember {
@@ -129,8 +134,17 @@ fun MeseroScreen(
         }
     }
 
-    // --- SINCRONIZACIÓN DEL MENÚ CON LA NUBE ---
+    // --- SINCRONIZACIÓN DEL MENÚ CON LA NUBE Y TASA BCV ---
     LaunchedEffect(Unit) {
+        // Cargar tasa de cambio del BCV en segundo plano
+        scope.launch {
+            val rate = fetchBcvExchangeRateFromApis()
+            if (rate != null) {
+                tasaCambio = rate
+                sharedPrefs.edit().putFloat("tasa_cambio", rate).apply()
+            }
+        }
+
         if (repository.isSupabaseConfigured) {
             repository.fetchDynamicMenu { cloudMenu ->
                 if (cloudMenu != null && cloudMenu.isNotEmpty()) {
@@ -146,7 +160,7 @@ fun MeseroScreen(
     var editingPlatillo by remember { mutableStateOf<MenuPlatillo?>(null) }
     var platilloNombreTemp by remember { mutableStateOf("") }
     var platilloPrecioTemp by remember { mutableStateOf("") }
-    var platilloCategoriaTemp by remember { mutableStateOf("ALMUERZO") }
+    var platilloCategoriaTemp by remember { mutableStateOf("COMIDA") }
     var platilloDescripcionTemp by remember { mutableStateOf("") }
     var platilloEmojiTemp by remember { mutableStateOf("🍔") }
     var platilloInventarioIdTemp by remember { mutableStateOf<Long?>(null) }
@@ -262,7 +276,7 @@ fun MeseroScreen(
                             notificationManager.createNotificationChannel(channel)
                         }
 
-                        val itemsSummary = nuevoPendiente.items.joinToString(", ") { "${it.cantidad}x ${it.producto}" }
+                        val itemsSummary = nuevoPendiente.items.joinToString(", ") { "${it.cantidad.formatQty()}x ${it.producto}" }
                         val builder = NotificationCompat.Builder(context, channelId)
                             .setSmallIcon(android.R.drawable.ic_dialog_info)
                             .setContentTitle("🧑‍🍳 ¡Nuevo Pedido en ${nuevoPendiente.mesa}!")
@@ -624,7 +638,7 @@ fun MeseroScreen(
                     BadgedBox(
                         badge = {
                             Badge {
-                                Text(carrito.sumOf { it.cantidad }.toString())
+                                Text(carrito.sumOf { it.cantidad }.formatQty())
                             }
                         }
                     ) {
@@ -676,7 +690,7 @@ fun MeseroScreen(
                                     color = Color.White,
                                     fontSize = 14.sp
                                 )
-                                val itemsSummary = ped.items.joinToString(", ") { "${it.cantidad}x ${it.producto}" }
+                                val itemsSummary = ped.items.joinToString(", ") { "${it.cantidad.formatQty()}x ${it.producto}" }
                                 Text(
                                     text = itemsSummary,
                                     color = Color.White.copy(alpha = 0.9f),
@@ -789,7 +803,8 @@ fun MeseroScreen(
                     "mesas" to "Mesas",
                     "menu" to "Menú",
                     "pedidos" to "Cocina",
-                    "historial" to "Historial"
+                    "historial" to "Historial",
+                    "membresias" to "Membresías 🎁"
                 )
 
                 tabItems.forEach { (key, label) ->
@@ -847,7 +862,7 @@ fun MeseroScreen(
                                 ) {
                                     Box(modifier = Modifier.fillMaxSize()) {
                                         androidx.compose.foundation.Image(
-                                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.img_restaurant_banner_1781876475366),
+                                            painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.img_fogon_banner_1783041915064),
                                             contentDescription = "Restaurant Banner",
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = androidx.compose.ui.layout.ContentScale.Crop
@@ -1033,6 +1048,8 @@ fun MeseroScreen(
                             item {
                                 ActiveComandaSummaryBox(
                                     mesaName = mesaSeleccionada,
+                                    clienteNombre = clienteNombre,
+                                    onClienteNombreChange = { clienteNombre = it },
                                     carrito = carrito,
                                     totalCarrito = totalCarrito,
                                     tasaCambio = tasaCambio,
@@ -1043,29 +1060,33 @@ fun MeseroScreen(
                                         showNotesDialog = true
                                     },
                                     onMinusClick = { idx, item ->
-                                        if (item.cantidad > 1) {
-                                            carrito[idx] = item.copy(cantidad = item.cantidad - 1)
+                                        val step = if (item.platillo.esPorPeso) 0.1 else 1.0
+                                        if (item.cantidad > step + 0.001) {
+                                            carrito[idx] = item.copy(cantidad = item.cantidad - step)
                                         } else {
                                             carrito.removeAt(idx)
                                         }
                                     },
                                     onPlusClick = { idx, item ->
-                                        carrito[idx] = item.copy(cantidad = item.cantidad + 1)
+                                        val step = if (item.platillo.esPorPeso) 0.1 else 1.0
+                                        carrito[idx] = item.copy(cantidad = item.cantidad + step)
                                     },
                                     onEnviarClick = {
-                                        isSending = true
-                                        val itemsComanda = carrito.map { it.toItemPedido() }
-                                        val comandaObj = Pedido(
-                                            mesa = mesaSeleccionada,
-                                            mesero = meseroNombre,
-                                            items = itemsComanda,
-                                            total = totalCarrito
-                                        )
-                                        repository.crearPedido(comandaObj) { exito, errorMsg ->
-                                            isSending = false
-                                            if (exito) {
-                                                carrito.clear()
-                                                activeTab = "pedidos" // Auto-redirigir a cocina para monitorear el pedido enviado
+                                         isSending = true
+                                         val itemsComanda = carrito.map { it.toItemPedido() }
+                                         val finalMesa = if (clienteNombre.isNotBlank()) "$mesaSeleccionada - ${clienteNombre.trim()}" else mesaSeleccionada
+                                         val comandaObj = Pedido(
+                                             mesa = finalMesa,
+                                             mesero = meseroNombre,
+                                             items = itemsComanda,
+                                             total = totalCarrito
+                                         )
+                                         repository.crearPedido(comandaObj) { exito, errorMsg ->
+                                             isSending = false
+                                             if (exito) {
+                                                 carrito.clear()
+                                                 clienteNombre = ""
+                                                 activeTab = "pedidos" // Auto-redirigir a cocina para monitorear el pedido enviado
                                                 scope.launch {
                                                     snackbarHostState.showSnackbar("¡Comanda enviada a Cocina! 🍳🚀")
                                                 }
@@ -1160,15 +1181,13 @@ fun MeseroScreen(
                                                     editingPlatillo = null // New
                                                     platilloNombreTemp = ""
                                                     platilloPrecioTemp = ""
-                                                    platilloCategoriaTemp = if (categoriaSeleccionada == "Todos") customCategories.firstOrNull() ?: "ALMUERZO" else categoriaSeleccionada
+                                                    platilloCategoriaTemp = if (categoriaSeleccionada == "Todos") customCategories.firstOrNull() ?: "COMIDA" else categoriaSeleccionada
                                                     platilloDescripcionTemp = ""
                                                     platilloEmojiTemp = when (platilloCategoriaTemp) {
-                                                        "DESAYUNO" -> "🍳"
-                                                        "ALMUERZO" -> "🥘"
-                                                        "CENA" -> "🌙"
+                                                        "COMIDA" -> "🍔"
                                                         "BEBIDA" -> "🥤"
-                                                        "POSTRE" -> "🍰"
-                                                        else -> "🍔"
+                                                        "ACOMPANAMIENTO" -> "🍟"
+                                                        else -> "🍽️"
                                                     }
                                                     showEditPlatilloDialog = true
                                                  },
@@ -1210,9 +1229,9 @@ fun MeseroScreen(
                                                         if (linkedPlat != null) {
                                                             val idx = carrito.indexOfFirst { it.platillo.nombre == linkedPlat.nombre }
                                                             if (idx != -1) {
-                                                                carrito[idx] = carrito[idx].copy(cantidad = carrito[idx].cantidad + 1)
+                                                                carrito[idx] = carrito[idx].copy(cantidad = carrito[idx].cantidad + 1.0)
                                                             } else {
-                                                                carrito.add(ItemCart(linkedPlat, 1))
+                                                                carrito.add(ItemCart(linkedPlat, 1.0))
                                                             }
                                                             menuSearchQuery = "" // Limpiar para el siguiente escaneo
                                                             snackbarHostState.showSnackbar("Escaneado: ${foundInv.nombre} added.")
@@ -1361,9 +1380,9 @@ fun MeseroScreen(
                                                             } else {
                                                                 val idx = carrito.indexOfFirst { it.platillo.nombre == pItem.nombre }
                                                                 if (idx != -1) {
-                                                                    carrito[idx] = carrito[idx].copy(cantidad = carrito[idx].cantidad + 1)
+                                                                    carrito[idx] = carrito[idx].copy(cantidad = carrito[idx].cantidad + 1.0)
                                                                 } else {
-                                                                    carrito.add(ItemCart(pItem, 1))
+                                                                    carrito.add(ItemCart(pItem, 1.0))
                                                                 }
                                                                 scope.launch {
                                                                     snackbarHostState.currentSnackbarData?.dismiss()
@@ -1397,6 +1416,8 @@ fun MeseroScreen(
                             item {
                                 ActiveComandaSummaryBox(
                                     mesaName = mesaSeleccionada,
+                                    clienteNombre = clienteNombre,
+                                    onClienteNombreChange = { clienteNombre = it },
                                     carrito = carrito,
                                     totalCarrito = totalCarrito,
                                     tasaCambio = tasaCambio,
@@ -1407,29 +1428,33 @@ fun MeseroScreen(
                                         showNotesDialog = true
                                     },
                                     onMinusClick = { idx, item ->
-                                        if (item.cantidad > 1) {
-                                            carrito[idx] = item.copy(cantidad = item.cantidad - 1)
+                                        val step = if (item.platillo.esPorPeso) 0.1 else 1.0
+                                        if (item.cantidad > step + 0.001) {
+                                            carrito[idx] = item.copy(cantidad = item.cantidad - step)
                                         } else {
                                             carrito.removeAt(idx)
                                         }
                                     },
                                     onPlusClick = { idx, item ->
-                                        carrito[idx] = item.copy(cantidad = item.cantidad + 1)
+                                        val step = if (item.platillo.esPorPeso) 0.1 else 1.0
+                                        carrito[idx] = item.copy(cantidad = item.cantidad + step)
                                     },
                                     onEnviarClick = {
-                                        isSending = true
-                                        val itemsComanda = carrito.map { it.toItemPedido() }
-                                        val comandaObj = Pedido(
-                                            mesa = mesaSeleccionada,
-                                            mesero = meseroNombre,
-                                            items = itemsComanda,
-                                            total = totalCarrito
-                                        )
-                                        repository.crearPedido(comandaObj) { exito, errorMsg ->
-                                            isSending = false
-                                            if (exito) {
-                                                carrito.clear()
-                                                activeTab = "pedidos" // Auto forward to kitchen tracker to monitor!
+                                         isSending = true
+                                         val itemsComanda = carrito.map { it.toItemPedido() }
+                                         val finalMesa = if (clienteNombre.isNotBlank()) "$mesaSeleccionada - ${clienteNombre.trim()}" else mesaSeleccionada
+                                         val comandaObj = Pedido(
+                                             mesa = finalMesa,
+                                             mesero = meseroNombre,
+                                             items = itemsComanda,
+                                             total = totalCarrito
+                                         )
+                                         repository.crearPedido(comandaObj) { exito, errorMsg ->
+                                             isSending = false
+                                             if (exito) {
+                                                 carrito.clear()
+                                                 clienteNombre = ""
+                                                 activeTab = "pedidos" // Auto forward to kitchen tracker to monitor!
                                                 scope.launch {
                                                     snackbarHostState.showSnackbar("¡Comanda enviada a Cocina! 🍳🚀")
                                                 }
@@ -1645,7 +1670,7 @@ fun MeseroScreen(
                                             Spacer(modifier = Modifier.height(8.dp))
                                             ped.items.forEach { itm ->
                                                 Text(
-                                                    text = "${itm.cantidad}x ${itm.producto}",
+                                                    text = "${itm.cantidad.formatQty()}x ${itm.producto}",
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     color = Color(0xFF49454F)
                                                 )
@@ -1680,8 +1705,10 @@ fun MeseroScreen(
                                             Spacer(Modifier.height(8.dp))
                                             OutlinedButton(
                                                 onClick = {
-                                                    val html = PrintUtils.generateReceiptHtml(ped.mesa, ped.items, ped.total, tasaCambio.toDouble())
-                                                    PrintUtils.printTicket(context, html)
+                                                    histRazonSocial = ""
+                                                    histRif = ""
+                                                    histDireccion = ""
+                                                    showHistorialFiscalDialog = ped
                                                 },
                                                 modifier = Modifier.fillMaxWidth(),
                                                 shape = RoundedCornerShape(8.dp)
@@ -1695,6 +1722,15 @@ fun MeseroScreen(
                                 }
                             }
                         }
+                    }
+
+                    "membresias" -> {
+                        MembresiasTab(
+                            context = context,
+                            meseroNombre = meseroNombre,
+                            repository = repository,
+                            tasaCambio = tasaCambio
+                        )
                     }
                 }
             }
@@ -1729,9 +1765,7 @@ fun MeseroScreen(
                     onClick = {
                         val weight = weightInputTemp.toDoubleOrNull() ?: 0.0
                         if (weight > 0) {
-                            val invItem = inventarioState.firstOrNull { it.id == prod.inventarioDependienteId }
-                            val weightedPlatillo = prod.copy(precio = prod.precio * weight, nombre = "${prod.nombre} (${weight} ${invItem?.unidadMedida ?: "Kg"})")
-                            carrito.add(ItemCart(weightedPlatillo, 1))
+                            carrito.add(ItemCart(prod, weight))
                             showWeightDialog = false
                         }
                     },
@@ -1948,6 +1982,68 @@ fun MeseroScreen(
         )
     }
 
+    // --- DIÁLOGO DE RE-EMISIÓN DE FACTURA FISCAL ---
+    showHistorialFiscalDialog?.let { ped ->
+        AlertDialog(
+            onDismissRequest = { showHistorialFiscalDialog = null },
+            title = { Text("Re-emitir Factura Fiscal (SENIAT)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Rellene los datos fiscales del receptor para la re-emisión. Dejar vacío para Consumidor Final.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                    OutlinedTextField(
+                        value = histRazonSocial,
+                        onValueChange = { histRazonSocial = it },
+                        label = { Text("Nombre / Razón Social") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = histRif,
+                        onValueChange = { histRif = it },
+                        label = { Text("RIF o Cédula (Ej: J-12345678-9)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = histDireccion,
+                        onValueChange = { histDireccion = it },
+                        label = { Text("Domicilio Fiscal") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val html = PrintUtils.generateReceiptHtml(
+                            ped.mesa,
+                            ped.items,
+                            ped.total,
+                            tasaCambio.toDouble(),
+                            clienteNombre = histRazonSocial,
+                            clienteRif = histRif,
+                            clienteDireccion = histDireccion
+                        )
+                        PrintUtils.printTicket(context, html)
+                        showHistorialFiscalDialog = null
+                    }
+                ) {
+                    Text("Re-imprimir Factura")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHistorialFiscalDialog = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     // --- DIÁLOGO DE BIENVENIDA (CONFIGURAR NOMBRE AL ENTRAR POR PRIMERA VEZ) ---
     if (showWelcomeDialog) {
         AlertDialog(
@@ -1969,7 +2065,7 @@ fun MeseroScreen(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "¡Bienvenido a RestFlow!",
+                        text = "¡Bienvenido a Fogón Guarotuyero!",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -2061,7 +2157,7 @@ fun MeseroScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${item.platillo.emoji} ${item.cantidad}x ${item.platillo.nombre}",
+                                    text = "${item.platillo.emoji} ${item.cantidad.formatQty()}x ${item.platillo.nombre}",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF1D1B20),
@@ -2489,6 +2585,478 @@ fun MeseroScreen(
             shape = RoundedCornerShape(24.dp),
             containerColor = Color.White
         )
+    }
+}
+
+@Serializable
+data class MembresiaObsequio(
+    val id: String,
+    val cliente: String,
+    val membresiaTipo: String,
+    val obsequioProducto: String,
+    val cantidad: Int = 1,
+    val liberado: Boolean = false,
+    val fechaLiberacion: String? = null
+)
+
+@Composable
+fun MembresiasTab(
+    context: android.content.Context,
+    meseroNombre: String,
+    repository: com.example.data.PedidoRepository,
+    tasaCambio: Float
+) {
+    val sharedPrefs = remember { context.getSharedPreferences("RestaurantPrefs", android.content.Context.MODE_PRIVATE) }
+    
+    var list by remember { mutableStateOf(emptyList<MembresiaObsequio>()) }
+    
+    val reload = {
+        val raw = sharedPrefs.getString("membresias_obsequios", null)
+        if (raw == null) {
+            val defaults = listOf(
+                MembresiaObsequio("1", "Carlos Mendoza", "VIP Gold", "Papas Fritas", 1, false),
+                MembresiaObsequio("2", "María Delgado", "Premium", "Refresco Sabor Cola", 1, false),
+                MembresiaObsequio("3", "Juan Rodríguez", "Cumpleañero", "Tacos de Res (x3)", 1, false),
+                MembresiaObsequio("4", "Andrea Quintero", "VIP Gold", "Té Frío Limón", 1, false),
+                MembresiaObsequio("5", "Roberto Pérez", "Socio Fundador", "Hamburguesa Premium", 1, false)
+            )
+            val serialized = defaults.joinToString("###") { m ->
+                "${m.id}||${m.cliente}||${m.membresiaTipo}||${m.obsequioProducto}||${m.cantidad}||${m.liberado}||${m.fechaLiberacion ?: ""}"
+            }
+            sharedPrefs.edit().putString("membresias_obsequios", serialized).apply()
+            list = defaults
+        } else {
+            try {
+                list = if (raw.trim().isEmpty()) emptyList() else raw.split("###").map { item ->
+                    val parts = item.split("||")
+                    MembresiaObsequio(
+                        id = parts[0],
+                        cliente = parts[1],
+                        membresiaTipo = parts[2],
+                        obsequioProducto = parts[3],
+                        cantidad = parts[4].toInt(),
+                        liberado = parts[5].toBoolean(),
+                        fechaLiberacion = if (parts.size > 6 && parts[6].isNotBlank()) parts[6] else null
+                    )
+                }
+            } catch (e: Exception) {
+                list = emptyList()
+            }
+        }
+    }
+    
+    val save = { newList: List<MembresiaObsequio> ->
+        val serialized = newList.joinToString("###") { m ->
+            "${m.id}||${m.cliente}||${m.membresiaTipo}||${m.obsequioProducto}||${m.cantidad}||${m.liberado}||${m.fechaLiberacion ?: ""}"
+        }
+        sharedPrefs.edit().putString("membresias_obsequios", serialized).apply()
+        list = newList
+    }
+
+    LaunchedEffect(Unit) {
+        reload()
+    }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var newCliente by remember { mutableStateOf("") }
+    var newTipo by remember { mutableStateOf("Premium") }
+    var newProducto by remember { mutableStateOf("Papas Fritas") }
+
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "🎁 Membresías y Obsequios",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color(0xFF1D1B20)
+                    )
+                    Text(
+                        text = "Gestión de regalos de cortesía para clientes VIP",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF49454F)
+                    )
+                }
+                
+                IconButton(
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFF6750A4), shape = RoundedCornerShape(12.dp))
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Agregar Obsequio", tint = Color.White)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (list.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🎁", fontSize = 64.sp)
+                        Text(
+                            "No hay membresías registradas",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF49454F)
+                        )
+                        TextButton(onClick = { reload() }) {
+                            Text("Cargar lista por defecto", color = Color(0xFF6750A4))
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(list) { item ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (item.liberado) Color(0xFFF7F2FA) else Color.White
+                            ),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (item.liberado) Color(0xFFCAC4D0).copy(alpha = 0.3f) else Color(0xFFE8DEF8)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = item.cliente,
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = if (item.liberado) Color(0xFF49454F) else Color(0xFF1D1B20)
+                                        )
+                                        Surface(
+                                            color = when (item.membresiaTipo.lowercase()) {
+                                                "vip gold" -> Color(0xFFFFF7C2)
+                                                "socio fundador" -> Color(0xFFE8DEF8)
+                                                "cumpleañero" -> Color(0xFFFFD8E4)
+                                                else -> Color(0xFFE6F4EA)
+                                            },
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = item.membresiaTipo.uppercase(),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when (item.membresiaTipo.lowercase()) {
+                                                    "vip gold" -> Color(0xFF7A6200)
+                                                    "socio fundador" -> Color(0xFF6750A4)
+                                                    "cumpleañero" -> Color(0xFFB3261E)
+                                                    else -> Color(0xFF137333)
+                                                }
+                                            )
+                                        }
+                                    }
+
+                                    Surface(
+                                        color = if (item.liberado) Color(0xFFE0E0E0) else Color(0xFFE6F4EA),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = if (item.liberado) Icons.Default.CheckCircle else Icons.Default.CardGiftcard,
+                                                contentDescription = null,
+                                                tint = if (item.liberado) Color(0xFF757575) else Color(0xFF137333),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                text = if (item.liberado) "LIBERADO" else "DISPONIBLE",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (item.liberado) Color(0xFF757575) else Color(0xFF137333)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Producto Obsequio:",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF49454F)
+                                        )
+                                        Text(
+                                            text = "${item.cantidad}x ${item.obsequioProducto}",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = if (item.liberado) Color(0xFF757575) else Color(0xFF6750A4)
+                                        )
+                                    }
+                                    
+                                    if (item.fechaLiberacion != null) {
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "Entregado el:",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color(0xFF757575)
+                                            )
+                                            Text(
+                                                text = item.fechaLiberacion,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                                color = Color(0xFF757575)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (!item.liberado) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = {
+                                            val nowStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                                            val updated = list.map { m ->
+                                                if (m.id == item.id) m.copy(liberado = true, fechaLiberacion = nowStr) else m
+                                            }
+                                            save(updated)
+                                            
+                                            val comandaObj = com.example.data.Pedido(
+                                                mesa = "Membresía: ${item.cliente}",
+                                                mesero = meseroNombre.ifBlank { "Membresía App" },
+                                                items = listOf(
+                                                    com.example.data.ItemPedido(
+                                                        producto = item.obsequioProducto,
+                                                        cantidad = item.cantidad.toDouble(),
+                                                        precio = 0.0,
+                                                        notas = "CORTESÍA DE MEMBRESÍA: ${item.membresiaTipo.uppercase()}"
+                                                    )
+                                                ),
+                                                total = 0.0,
+                                                estado = "pendiente"
+                                            )
+                                            
+                                            repository.crearPedido(comandaObj) { exito, errorMsg ->
+                                                if (exito) {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("¡Obsequio Liberado! Orden enviada a cocina.")
+                                                    }
+                                                } else {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Liberado localmente. Error enviando: $errorMsg")
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF137333))
+                                    ) {
+                                        Icon(Icons.Default.CardGiftcard, null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("CONFIRMAR Y LIBERAR", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedButton(
+                            onClick = {
+                                sharedPrefs.edit().remove("membresias_obsequios").apply()
+                                reload()
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFB3261E)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB3261E))
+                        ) {
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Reiniciar Membresías de Prueba", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+        
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CardGiftcard, null, tint = Color(0xFF6750A4))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Registrar Obsequio VIP", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Asigna una cortesía gratuita de membresía para un cliente preferencial.", fontSize = 13.sp, color = Color(0xFF49454F))
+                    
+                    OutlinedTextField(
+                        value = newCliente,
+                        onValueChange = { newCliente = it },
+                        label = { Text("Nombre del Cliente VIP") },
+                        placeholder = { Text("Ej: Carlos Mendoza") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    OutlinedTextField(
+                        value = newTipo,
+                        onValueChange = { newTipo = it },
+                        label = { Text("Tipo de Membresía / Evento") },
+                        placeholder = { Text("Ej: VIP Gold, Cumpleañero") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    OutlinedTextField(
+                        value = newProducto,
+                        onValueChange = { newProducto = it },
+                        label = { Text("Producto de Obsequio") },
+                        placeholder = { Text("Ej: Tacos, Refresco, Postre") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newCliente.isNotBlank() && newProducto.isNotBlank()) {
+                            val newId = (list.map { it.id.toIntOrNull() ?: 0 }.maxOrNull() ?: 0) + 1
+                            val newGift = MembresiaObsequio(
+                                id = newId.toString(),
+                                cliente = newCliente.trim(),
+                                membresiaTipo = newTipo.trim().ifBlank { "Premium" },
+                                obsequioProducto = newProducto.trim(),
+                                cantidad = 1,
+                                liberado = false
+                            )
+                            val updated = list + newGift
+                            save(updated)
+                            
+                            newCliente = ""
+                            newTipo = "Premium"
+                            newProducto = "Papas Fritas"
+                            showAddDialog = false
+                            
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Obsequio registrado con éxito")
+                            }
+                        }
+                    },
+                    enabled = newCliente.isNotBlank() && newProducto.isNotBlank(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                ) {
+                    Text("REGISTRAR", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) { Text("Cancelar", color = Color(0xFF49454F)) }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = Color.White
+        )
+    }
+}
+
+suspend fun fetchBcvExchangeRateFromApis(): Float? {
+    val apis = listOf(
+        "https://pydolarvenezuela-api.vercel.app/api/v1/dollar?page=bcv",
+        "https://dolar-api-venezuela.vercel.app/api/bcv",
+        "https://open.er-api.com/v6/latest/USD"
+    )
+    
+    return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        for (apiUrl in apis) {
+            try {
+                val url = java.net.URL(apiUrl)
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+                conn.connect()
+                
+                if (conn.responseCode == 200) {
+                    val reader = java.io.BufferedReader(java.io.InputStreamReader(conn.inputStream))
+                    val response = StringBuilder()
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        response.append(line)
+                    }
+                    reader.close()
+                    
+                    val json = response.toString()
+                    
+                    if (apiUrl.contains("pydolarvenezuela-api") || apiUrl.contains("dolar-api-venezuela")) {
+                        val pattern = "\"price\"\\s*:\\s*([0-9.]+)"
+                        val regex = Regex(pattern)
+                        val match = regex.find(json)
+                        if (match != null) {
+                            val valueStr = match.groupValues[1]
+                            val rate = valueStr.toFloatOrNull()
+                            if (rate != null && rate > 0) {
+                                return@withContext rate
+                            }
+                        }
+                    } else if (apiUrl.contains("open.er-api.com")) {
+                        val pattern = "\"VES\"\\s*:\\s*([0-9.]+)"
+                        val regex = Regex(pattern)
+                        val match = regex.find(json)
+                        if (match != null) {
+                            val valueStr = match.groupValues[1]
+                            val rate = valueStr.toFloatOrNull()
+                            if (rate != null && rate > 0) {
+                                return@withContext rate
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        null
     }
 }
 

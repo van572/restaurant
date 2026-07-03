@@ -117,9 +117,9 @@ class MeseroViewModel(
         val existingIndex = current.indexOfFirst { it.platillo.nombre == platillo.nombre }
         if (existingIndex != -1) {
             val existing = current[existingIndex]
-            current[existingIndex] = existing.copy(cantidad = existing.cantidad + 1)
+            current[existingIndex] = existing.copy(cantidad = existing.cantidad + 1.0)
         } else {
-            current.add(ItemCart(platillo, 1))
+            current.add(ItemCart(platillo, 1.0))
         }
         _carrito.value = current
     }
@@ -128,8 +128,9 @@ class MeseroViewModel(
         val current = _carrito.value.toMutableList()
         if (index in current.indices) {
             val item = current[index]
-            if (item.cantidad > 1) {
-                current[index] = item.copy(cantidad = item.cantidad - 1)
+            val step = if (item.platillo.esPorPeso) 0.1 else 1.0
+            if (item.cantidad > step + 0.001) {
+                current[index] = item.copy(cantidad = item.cantidad - step)
             } else {
                 current.removeAt(index)
             }
@@ -141,7 +142,8 @@ class MeseroViewModel(
         val current = _carrito.value.toMutableList()
         if (index in current.indices) {
             val item = current[index]
-            current[index] = item.copy(cantidad = item.cantidad + 1)
+            val step = if (item.platillo.esPorPeso) 0.1 else 1.0
+            current[index] = item.copy(cantidad = item.cantidad + step)
         }
         _carrito.value = current
     }

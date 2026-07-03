@@ -7,6 +7,9 @@ const MENU_DEFAULT_CLIENTE = [
     { nombre: "Hamburguesa Premium", precio: 12.50, categoria: "COMIDA", descripcion: "Queso cheddar, tocino, aderezo gourmet.", emoji: "🍔" },
     { nombre: "Pizza Personal Pepperoni", precio: 15.00, categoria: "COMIDA", descripcion: "Salsa de la casa, pepperoni, mozzarella.", emoji: "🍕" },
     { nombre: "Tacos de Res (x3)", precio: 8.50, categoria: "COMIDA", descripcion: "Cebollitas asadas, cilantro, salsas.", emoji: "🌮" },
+    { nombre: "Parrilla Familiar (al Peso)", precio: 24.00, categoria: "COMIDA", descripcion: "Exquisito surtido de carnes premium cocidas a la brasa, servido por kilo o gramo.", emoji: "🥩" },
+    { nombre: "Chicharrón Crujiente (al Peso)", precio: 18.00, categoria: "COMIDA", descripcion: "Tradicional chicharrón de cerdo bien crujiente con arepitas, servido por kilo o gramo.", emoji: "🥓" },
+    { nombre: "Costillas de Cerdo (al Peso)", precio: 21.00, categoria: "COMIDA", descripcion: "Costillas de cerdo ahumadas con glaseado especial BBQ de la casa, servidas por kilo o gramo.", emoji: "🍖" },
     { nombre: "Alitas BBQ", precio: 9.50, categoria: "COMIDA", descripcion: "10 piezas de alitas bañadas en salsa barbacoa.", emoji: "🍗" },
     { nombre: "Papas Fritas", precio: 4.00, categoria: "ACOMPANAMIENTO", descripcion: "Doraditas y crujientes con sal marina.", emoji: "🍟" },
     { nombre: "Té Frío Limón", precio: 3.00, categoria: "BEBIDA", descripcion: "Infusión de té negro con zumo fresco.", emoji: "🍹" },
@@ -18,7 +21,8 @@ let state = {
     mesa: null,
     menu: [],
     carrito: [],
-    isSending: false
+    isSending: false,
+    tasaCambio: 45.5
 };
 
 // 1. INICIALIZACIÓN
@@ -36,18 +40,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-    // Capturar mesa de la URL
+    // Cargar tasa de cambio oficial del BCV antes de renderizar nada
+    try {
+        const tasa = await DataService.getSettings("tasa_cambio");
+        state.tasaCambio = parseFloat(tasa) || 45.5;
+        console.log("📊 Tasa BCV cargada en cliente:", state.tasaCambio);
+    } catch (e) {
+        console.warn("No se pudo obtener la tasa_cambio en el cliente, usando default de 45.5", e);
+        state.tasaCambio = 45.5;
+    }
+
+    // Capturar mesa o alias de la URL
     const urlParams = new URLSearchParams(window.location.search);
     const mesaParam = urlParams.get('mesa');
+    const aliasParam = urlParams.get('alias') || urlParams.get('cliente');
     
-    if (mesaParam) {
-        state.mesa = mesaParam;
-        document.getElementById('mesa-indicator').textContent = `Mesa ${mesaParam}`;
+    const savedAlias = sessionStorage.getItem('cliente_alias') || sessionStorage.getItem('cliente_nombre');
+    
+    if (aliasParam) {
+        state.alias = aliasParam;
+        state.mesa = aliasParam;
+        sessionStorage.setItem('cliente_alias', aliasParam);
+        sessionStorage.setItem('cliente_nombre', aliasParam);
+    } else if (mesaParam && !savedAlias) {
+        // Soporte retrocompatible para QRs con mesa=X
+        const legacyVal = `Mesa ${mesaParam}`;
+        state.alias = legacyVal;
+        state.mesa = legacyVal;
+        sessionStorage.setItem('cliente_alias', legacyVal);
+        sessionStorage.setItem('cliente_nombre', legacyVal);
+    } else if (savedAlias) {
+        state.alias = savedAlias;
+        state.mesa = savedAlias;
     } else {
-        document.getElementById('mesa-indicator').textContent = "Mesa no detectada";
-        showQRError();
-        return;
+        state.alias = "";
+        state.mesa = "";
     }
+
+    actualizarUIIdentidad();
 
     // Cargar Menú
     await cargarMenu();
@@ -71,15 +101,73 @@ async function initApp() {
         state.activeOrderId = activeOrderId;
         startTrackingOrder(activeOrderId);
     }
+
+    // Auto open modal on load if no alias exists to prompt identification
+    if (!state.alias) {
+        setTimeout(() => {
+            openMesaModal();
+        }, 800);
+    }
+}
+
+function actualizarUIIdentidad() {
+    const textSpan = document.getElementById('identity-text');
+    if (textSpan) {
+        textSpan.textContent = state.alias ? state.alias : "Identificarse";
+    }
+    const aliasInput = document.getElementById('cliente-alias-input');
+    if (aliasInput) {
+        aliasInput.value = state.alias || "";
+    }
+    const cartInput = document.getElementById('cliente-nombre-input');
+    if (cartInput) {
+        cartInput.value = state.alias || "";
+    }
+}
+
+function openMesaModal() {
+    const modal = document.getElementById('mesa-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        const aliasInput = document.getElementById('cliente-alias-input');
+        if (aliasInput) {
+            aliasInput.value = state.alias || "";
+            setTimeout(() => aliasInput.focus(), 150);
+        }
+    }
+}
+
+function closeMesaModal() {
+    const modal = document.getElementById('mesa-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function guardarIdentidadCliente() {
+    const input = document.getElementById('cliente-alias-input');
+    const val = input ? input.value.trim() : "";
+    if (!val) {
+        Toast.warning("Nombre requerido 🗣️", "Por favor ingresa tu nombre o alias para continuar.");
+        if (input) input.focus();
+        return;
+    }
+    
+    state.alias = val;
+    state.mesa = val;
+    sessionStorage.setItem('cliente_alias', val);
+    sessionStorage.setItem('cliente_nombre', val);
+    
+    actualizarUIIdentidad();
+    closeMesaModal();
+    Toast.success("Identificado", `¡Hola, ${val}! Ya puedes armar tu comanda.`);
 }
 
 function showQRError() {
     const content = document.getElementById('main-content');
     content.innerHTML = `
         <div class="qr-alert">
-            <ion-icon name="qr-code-outline" style="font-size: 3rem; margin-bottom: 12px;"></ion-icon>
-            <p><strong>¡Vaya! No hemos detectado tu mesa.</strong></p>
-            <p>Por favor, escanea nuevamente el código QR que se encuentra en tu mesa para poder hacer tu pedido.</p>
+            <ion-icon name="person-circle-outline" style="font-size: 3rem; margin-bottom: 12px;"></ion-icon>
+            <p><strong>Identificación Requerida 🗣️</strong></p>
+            <p>Por favor, selecciona tu nombre o alias haciendo clic en el botón "Identificarse" en la esquina superior.</p>
         </div>
     `;
     document.getElementById('cart-bar').style.display = 'none';
@@ -254,7 +342,10 @@ function renderMenu() {
                     <div class="platillo-name">${prod.nombre} ${isAvailable ? '' : '<span style="font-size:0.6rem; color:var(--danger);">(AGOTADO)</span>'}</div>
                     <div class="platillo-desc">${prod.descripcion || ''}</div>
                     <div class="platillo-footer">
-                        <div class="platillo-price">$${parseFloat(prod.precio).toFixed(2)}</div>
+                        <div class="platillo-price" style="display: flex; flex-direction: column;">
+                            <span style="font-size: 1.1rem; font-weight: 800; color: var(--primary);">$${parseFloat(prod.precio).toFixed(2)}</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal; margin-top: 2px;">Bs. ${(parseFloat(prod.precio) * state.tasaCambio).toFixed(2)}</span>
+                        </div>
                         <button class="add-btn" ${isAvailable ? '' : 'disabled'} onclick="addToCart('${prod.nombre}', ${prod.precio})">
                             <ion-icon name="${isAvailable ? 'add' : 'ban-outline'}"></ion-icon>
                         </button>
@@ -320,6 +411,11 @@ function openCart() {
     const modal = document.getElementById('cart-modal');
     modal.style.display = 'flex';
     renderCartItems();
+    
+    const input = document.getElementById('cliente-nombre-input');
+    if (input) {
+        input.value = sessionStorage.getItem('cliente_nombre') || '';
+    }
 }
 
 function closeCart() {
@@ -379,6 +475,23 @@ function updateNotes(index, value) {
 async function enviarPedidoCliente() {
     if (state.carrito.length === 0 || state.isSending) return;
     
+    // Sync if name was typed in cart input
+    const nameInput = document.getElementById('cliente-nombre-input');
+    const clienteNombre = nameInput ? nameInput.value.trim() : '';
+    if (clienteNombre) {
+        state.alias = clienteNombre;
+        state.mesa = clienteNombre;
+        sessionStorage.setItem('cliente_alias', clienteNombre);
+        sessionStorage.setItem('cliente_nombre', clienteNombre);
+        actualizarUIIdentidad();
+    }
+
+    if (!state.alias) {
+        Toast.error("Identificación requerida 🗣️", "Por favor ingresa tu nombre o alias.");
+        openMesaModal();
+        return;
+    }
+    
     const confirmacion = confirm("¿Deseas enviar tu pedido a la cocina?");
     if (!confirmacion) return;
 
@@ -390,7 +503,7 @@ async function enviarPedidoCliente() {
     const total = state.carrito.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
     
     const pedidoData = {
-        mesa: `Mesa ${state.mesa}`,
+        mesa: state.alias,
         mesero: "Autoservicio QR",
         items: state.carrito,
         total: total
@@ -432,6 +545,46 @@ async function enviarPedidoCliente() {
 
 // 5. NUEVA LOGICA DE SEGUIMIENTO Y SERVICIOS
 // 5. NUEVA LOGICA DE SEGUIMIENTO Y SERVICIOS
+let pmQRCodeObj = null;
+
+async function generarPagoMovilQR() {
+    try {
+        const pm = await DataService.getSettings('pago_movil');
+        const qrContainer = document.getElementById('pm-qr-container');
+        const qrBox = document.getElementById('pm-qr-box');
+        const qrTotalVesEl = document.getElementById('pm-qr-total-ves');
+        
+        if (pm && qrContainer && qrBox && qrTotalVesEl) {
+            // Calcular total en bolívares
+            const totalUsd = state.carrito.reduce((acc, item) => acc + (item.cantidad * item.precio), 0);
+            const totalVes = totalUsd * state.tasaCambio;
+            
+            qrTotalVesEl.textContent = totalVes.toFixed(2);
+            qrBox.innerHTML = ''; // Limpiar previo
+            
+            // Extraer el código del banco (por ejemplo, "0102" si es "0102 - Banco de Venezuela")
+            const bancoCode = (pm.banco || '').match(/\d{4}/)?.[0] || '0102';
+            
+            // Payload estándar de Pago Móvil en Venezuela:
+            // pagomovil:{codigo_banco}:{telefono}:{rif}:{monto_formateado}
+            const payload = `pagomovil:${bancoCode}:${pm.telefono}:${pm.rif}:${totalVes.toFixed(2)}`;
+            
+            pmQRCodeObj = new QRCode(qrBox, {
+                text: payload,
+                width: 140,
+                height: 140,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.M
+            });
+            
+            qrContainer.style.display = 'flex';
+        }
+    } catch (e) {
+        console.error("No se pudo generar el QR de Pago Móvil:", e);
+    }
+}
+
 function openPagoMovil() {
     if (state.carrito.length === 0) {
         Toast.info("Carrito vacío", "Agrega algunos platillos antes de pagar.");
@@ -439,6 +592,7 @@ function openPagoMovil() {
         return;
     }
     document.getElementById('pm-modal').style.display = 'flex';
+    generarPagoMovilQR();
 }
 
 function closePagoMovil() {
@@ -446,6 +600,24 @@ function closePagoMovil() {
 }
 
 async function confirmarPagoMovil() {
+    // Sync if name was typed in cart input
+    const nameInput = document.getElementById('cliente-nombre-input');
+    const clienteNombre = nameInput ? nameInput.value.trim() : '';
+    if (clienteNombre) {
+        state.alias = clienteNombre;
+        state.mesa = clienteNombre;
+        sessionStorage.setItem('cliente_alias', clienteNombre);
+        sessionStorage.setItem('cliente_nombre', clienteNombre);
+        actualizarUIIdentidad();
+    }
+
+    if (!state.alias) {
+        Toast.error("Identificación requerida 🗣️", "Por favor ingresa tu nombre o alias.");
+        closePagoMovil();
+        openMesaModal();
+        return;
+    }
+
     const banco = document.getElementById('pm-banco').value;
     const telefono = document.getElementById('pm-telefono').value.trim();
     const referencia = document.getElementById('pm-referencia').value.trim();
@@ -462,7 +634,7 @@ async function confirmarPagoMovil() {
     
     // Preparar payload con metadatos de pago
     const pedidoData = {
-        mesa: `Mesa ${state.mesa}`,
+        mesa: state.alias,
         mesero: "Cliente QR (Pago Móvil)",
         items: state.carrito,
         total: total,
@@ -554,12 +726,17 @@ function updateStatusUI(estado) {
 }
 
 async function solicitarMesa(tipo) {
+    if (!state.alias) {
+        Toast.error("Identificación requerida 🗣️", "Por favor ingresa tu nombre o alias haciendo clic en el indicador superior.");
+        openMesaModal();
+        return;
+    }
     try {
-        await DataService.crearSolicitud(`Mesa ${state.mesa}`, tipo);
+        await DataService.crearSolicitud(state.alias, tipo);
         if (tipo === 'cuenta') {
             Toast.success("Cuenta Solicitada", "El cajero te atenderá en breve.");
         } else {
-            Toast.success("Mesero Llamado", "Un mesero se dirige a tu mesa.");
+            Toast.success("Mesero Llamado", "Un mesero se dirigirá a tu lugar.");
         }
     } catch (e) {
         console.error("Error al solicitar mesa:", e);

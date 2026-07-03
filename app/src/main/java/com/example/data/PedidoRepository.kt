@@ -405,15 +405,7 @@ class PedidoRepository(
                         val platillo = MENU_ITEMS.find { it.nombre == item.producto || item.producto.startsWith(it.nombre) }
                         platillo?.inventarioDependienteId?.let { invId ->
                             dao.getInventarioById(invId)?.let { invEntity ->
-                                val deduction = if (platillo.esPorPeso) {
-                                    // El peso está en el nombre (Kg) o usamos la cantidad (pero en este demo simplificamos)
-                                    // Intentar extraer peso del nombre si es por peso
-                                    val regex = ".*\\(([0-9.]+).*".toRegex()
-                                    val match = regex.find(item.producto)
-                                    match?.groupValues?.get(1)?.toDoubleOrNull() ?: 1.0
-                                } else {
-                                    item.cantidad.toDouble()
-                                }
+                                val deduction = item.cantidad
                                 dao.insertInventario(invEntity.copy(stock = (invEntity.stock - deduction).coerceAtLeast(0.0)))
                             }
                         }
@@ -555,9 +547,9 @@ class PedidoRepository(
                 mesa = "Mesa 3",
                 mesero = "Carlos Gómez",
                 items = listOf(
-                    ItemPedido("Hamburguesa Premium", 2, 12.50, "Una sin cebolla"),
-                    ItemPedido("Papas Fritas", 1, 4.00),
-                    ItemPedido("Refresco Sabor Cola", 2, 2.50)
+                    ItemPedido("Hamburguesa Premium", 2.0, 12.50, "Una sin cebolla"),
+                    ItemPedido("Papas Fritas", 1.0, 4.00),
+                    ItemPedido("Refresco Sabor Cola", 2.0, 2.50)
                 ),
                 total = 31.50,
                 estado = "pendiente",
@@ -570,8 +562,8 @@ class PedidoRepository(
                 mesa = "Mesa 7",
                 mesero = "María Rojas",
                 items = listOf(
-                    ItemPedido("Pizza Personal Pepperoni", 1, 15.00, "Borde doble queso"),
-                    ItemPedido("Té Frío Limón", 1, 3.00)
+                    ItemPedido("Pizza Personal Pepperoni", 1.0, 15.00, "Borde doble queso"),
+                    ItemPedido("Té Frío Limón", 1.0, 3.00)
                 ),
                 total = 18.00,
                 estado = "cocinando",

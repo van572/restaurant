@@ -84,7 +84,7 @@ fun CardCocinaPedido(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "${item.cantidad}x ${item.producto}",
+                            text = "${item.cantidad.formatQty()}x ${item.producto}",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )

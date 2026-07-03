@@ -22,12 +22,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.*
 import com.example.data.*
 import com.example.ui.PrintUtils
 
 @Composable
 fun ActiveComandaSummaryBox(
     mesaName: String,
+    clienteNombre: String,
+    onClienteNombreChange: (String) -> Unit,
     carrito: List<ItemCart>,
     totalCarrito: Double,
     tasaCambio: Float,
@@ -38,6 +41,11 @@ fun ActiveComandaSummaryBox(
     onEnviarClick: () -> Unit,
     isSending: Boolean
 ) {
+    var showFiscalDialog by remember { mutableStateOf(false) }
+    var inputRazonSocial by remember(clienteNombre) { mutableStateOf(clienteNombre) }
+    var inputRif by remember { mutableStateOf("") }
+    var inputDireccion by remember { mutableStateOf("") }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -70,6 +78,19 @@ fun ActiveComandaSummaryBox(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Registra el nombre del cliente para comanda a viva voz
+            OutlinedTextField(
+                value = clienteNombre,
+                onValueChange = onClienteNombreChange,
+                label = { Text("Nombre de Cliente (Llamado a Viva Voz) 🗣️") },
+                placeholder = { Text("Ej: María Rojas / Juan") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().testTag("cliente_nombre_input"),
+                shape = RoundedCornerShape(12.dp)
+            )
 
             Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFFCAC4D0).copy(alpha = 0.5f))
 
@@ -167,7 +188,7 @@ fun ActiveComandaSummaryBox(
                                 }
 
                                 Text(
-                                    text = item.cantidad.toString(),
+                                    text = item.cantidad.formatQty(),
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = Color(0xFF1D1B20),
                                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -226,14 +247,74 @@ fun ActiveComandaSummaryBox(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     val context = androidx.compose.ui.platform.LocalContext.current
+                    if (showFiscalDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showFiscalDialog = false },
+                            title = { Text("Datos Fiscales del Receptor (SENIAT)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        text = "Rellene los datos para la factura. Deje en blanco para usar Consumidor Final.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
+                                    OutlinedTextField(
+                                        value = inputRazonSocial,
+                                        onValueChange = { inputRazonSocial = it },
+                                        label = { Text("Nombre / Razón Social") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = inputRif,
+                                        onValueChange = { inputRif = it },
+                                        label = { Text("RIF o Cédula (Ej: J-12345678-9)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = inputDireccion,
+                                        onValueChange = { inputDireccion = it },
+                                        label = { Text("Domicilio Fiscal") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        val html = PrintUtils.generateReceiptHtml(
+                                            mesaName,
+                                            carrito.map { it.toItemPedido() },
+                                            totalCarrito,
+                                            tasaCambio.toDouble(),
+                                            clienteNombre = inputRazonSocial,
+                                            clienteRif = inputRif,
+                                            clienteDireccion = inputDireccion
+                                        )
+                                        PrintUtils.printTicket(context, html)
+                                        showFiscalDialog = false
+                                    }
+                                ) {
+                                    Text("Generar e Imprimir Factura")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showFiscalDialog = false }) {
+                                    Text("Cancelar")
+                                }
+                            }
+                        )
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedButton(
                             onClick = {
-                                val html = PrintUtils.generateReceiptHtml(mesaName, carrito.map { it.toItemPedido() }, totalCarrito, tasaCambio.toDouble())
-                                PrintUtils.printTicket(context, html)
+                                showFiscalDialog = true
                             },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)

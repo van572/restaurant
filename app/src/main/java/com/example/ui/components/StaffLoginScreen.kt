@@ -49,7 +49,7 @@ fun StaffLoginScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "🏪 RestFlow Staff",
+                    text = "🔥 Fogón Guarotuyero Staff",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFF6750A4)

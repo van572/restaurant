@@ -181,19 +181,54 @@
             <a href="caja.html" class="btn-back">
                 <ion-icon name="arrow-back" style="font-size: 1.5rem;"></ion-icon>
             </a>
-            <h1>Generador de Códigos QR para Mesas</h1>
+            <h1>Gestión de Códigos QR del Local</h1>
         </div>
 
-        <div class="card">
-            <div style="margin-bottom: 25px;">
-                <p>Configura la URL base de tu sistema y genera etiquetas listas para imprimir.</p>
+        <!-- SECCIÓN: CÓDIGO QR GLOBAL -->
+        <div class="card" style="border: 2px solid var(--primary); background: rgba(255, 107, 0, 0.03);">
+            <div class="header" style="margin-bottom: 20px;">
+                <ion-icon name="qr-code-outline" style="font-size: 1.8rem; color: var(--primary);"></ion-icon>
+                <h2 style="font-size: 1.4rem; margin: 0;">Código QR Global Único 🌟</h2>
             </div>
+            <p style="color: var(--text-muted); margin-bottom: 25px; font-size: 0.95rem; line-height: 1.5;">
+                ¡Ya no necesitas códigos individuales! Imprime este <strong>único código QR global</strong> y colócalo en tus mesas, barra o paredes. Al escanearlo, tus clientes podrán seleccionar cómodamente su número de mesa y enviar su comanda a cocina.
+            </p>
 
             <div class="form-group">
-                <label>URL Base del Cliente (automática)</label>
-                <input type="text" id="url-base" placeholder="https://tu-sitio.com/cliente.html">
+                <label>URL del Menú Digital (automática)</label>
+                <input type="text" id="url-base" oninput="generarQRGlobal()" placeholder="https://tu-sitio.com/cliente.html">
                 <small style="color: var(--text-muted); margin-top: 5px;">El sistema detectó: <span id="detected-url"></span></small>
             </div>
+
+            <div id="global-qr-container" style="display: flex; flex-direction: column; align-items: center; background: white; padding: 25px; border-radius: 16px; width: fit-content; margin: 30px auto 20px; text-align: center; color: #000; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                <span style="font-size: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #ff6b00; margin-bottom: 6px;">FOGÓN GUAROTUYERO</span>
+                <span style="font-size: 0.75rem; color: #666; font-weight: 600; margin-bottom: 15px; letter-spacing: 0.5px;">MENÚ DIGITAL & AUTO-SERVICIO QR</span>
+                
+                <div id="global-qr-box" class="qr-code-box" style="margin-bottom: 15px; padding: 10px; background: white;"></div>
+                
+                <span style="font-size: 0.8rem; font-weight: 700; color: #333; margin-top: 5px; text-transform: uppercase;">¡ESCANEAME PARA ORDENAR! 📱</span>
+                <span style="font-size: 0.65rem; color: #888; max-width: 200px; margin-top: 4px; line-height: 1.2;">Selecciona tu mesa al ingresar y enviamos tu comanda directo a cocina.</span>
+            </div>
+
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <button class="btn-generate" onclick="descargarQRGlobal()" style="flex: 1; max-width: 250px; background: #0064D2;">
+                    <ion-icon name="download-outline"></ion-icon> Descargar PNG
+                </button>
+                <button class="btn-generate" onclick="imprimirQRGlobal()" style="flex: 1; max-width: 250px; background: var(--primary);">
+                    <ion-icon name="print-outline"></ion-icon> Imprimir Etiqueta
+                </button>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: CÓDIGOS QR POR MESA (OPCIONAL) -->
+        <div class="card" style="opacity: 0.85;">
+            <div class="header" style="margin-bottom: 20px;">
+                <ion-icon name="layers-outline" style="font-size: 1.5rem; color: var(--text-muted);"></ion-icon>
+                <h2 style="font-size: 1.2rem; margin: 0;">Generador por Mesas Individuales (Opcional)</h2>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+                Si prefieres que cada QR tenga pre-definido su número de mesa para que el cliente no tenga que elegirlo, puedes generar códigos en lote aquí:
+            </p>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div class="form-group">
@@ -206,15 +241,15 @@
                 </div>
             </div>
 
-            <button class="btn-generate" onclick="generarLoteQR()">
-                <ion-icon name="qr-code"></ion-icon>
-                Generar Etiquetas
+            <button class="btn-generate" onclick="generarLoteQR()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); color: #fff;">
+                <ion-icon name="grid-outline"></ion-icon>
+                Generar Códigos Individuales
             </button>
         </div>
 
         <div id="result-container" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="font-size: 1.4rem;">Etiquetas Generadas</h2>
+                <h2 style="font-size: 1.4rem;">Etiquetas por Mesa Generadas</h2>
                 <button class="btn-download" style="width: auto; padding: 10px 20px;" onclick="window.print()">
                     <ion-icon name="print"></ion-icon>
                     Imprimir Todas

@@ -651,6 +651,184 @@
             .caja-workspace { grid-template-columns: 1fr; }
             .facturadora-panel { position: relative; top: 0; max-height: none; }
         }
+
+        /* --- ESTILOS DE MONITOREO BANCARIO Y CONCILIACION --- */
+        .bank-tx-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+        .bank-tx-card:hover {
+            background: rgba(30, 41, 59, 0.7);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+        .bank-tx-card.new-tx {
+            animation: flashNew 1.5s ease-out;
+        }
+        @keyframes flashNew {
+            0% { background: rgba(16, 185, 129, 0.25); border-color: #10b981; }
+            100% { background: rgba(30, 41, 59, 0.45); border-color: rgba(255, 255, 255, 0.05); }
+        }
+        .bank-tx-details {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .bank-tx-meta {
+            font-size: 0.7rem;
+            color: var(--color-text-muted);
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .bank-tx-amount-box {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+        .bank-tx-amount {
+            font-weight: 700;
+            color: #10b981;
+            font-size: 0.85rem;
+        }
+        .bank-tx-status {
+            font-size: 0.625rem;
+            font-weight: 800;
+            padding: 1px 5px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .bank-tx-status.pending {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+        }
+        .bank-tx-status.matched {
+            background: rgba(16, 185, 129, 0.12);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        /* Modal de Conciliacion Bancaria */
+        .reconcile-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .reconcile-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .reconcile-modal-content {
+            background: var(--color-bg-depth);
+            border: 1px solid var(--color-border);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 550px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .reconcile-modal.active .reconcile-modal-content {
+            transform: scale(1);
+        }
+        .reconcile-modal-header {
+            padding: 1.25rem 1.5rem;
+            background: rgba(30, 41, 59, 0.4);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .reconcile-modal-header h3 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .reconcile-modal-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+        .reconcile-console {
+            background: #090d16;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.8rem;
+            color: #a7f3d0;
+            min-height: 120px;
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .reconcile-console p {
+            margin: 0;
+            line-height: 1.4;
+        }
+        .reconcile-console p.error { color: #fca5a5; }
+        .reconcile-console p.success { color: #34d399; }
+        .reconcile-console p.info { color: #38bdf8; }
+
+        .reconcile-success-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 1.5rem 0;
+            animation: scaleUp 0.3s ease;
+        }
+        @keyframes scaleUp {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .reconcile-manual-section {
+            border-top: 1px dashed var(--color-border);
+            padding-top: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .reconcile-manual-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 6px;
+        }
     </style>
 </head>
 <body>
@@ -698,15 +876,52 @@
     <!-- ENTIDAD EXPOSITORA CENTRAL -->
     <main id="tab-content-ventas" class="caja-workspace">
         
-        <!-- SECCIÓN IZQUIERDA: MESAS CON CUENTA -->
-        <section class="mesa-list-container">
-            <div class="section-header">
-                <h2>🍽️ Cuentas de Mesa Activas</h2>
-            </div>
-            <div id="grid-mesas-caja" class="grid-mesas">
-                <div class="alerta-vacia total-ancho">Cargando cuentas activas del restaurante...</div>
-            </div>
-        </section>
+        <!-- COLUMNA IZQUIERDA: GRILLA DE MESAS Y FEED DE BANCO -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- SECCIÓN: MESAS CON CUENTA -->
+            <section class="mesa-list-container">
+                <div class="section-header">
+                    <h2>🍽️ Cuentas de Mesa Activas</h2>
+                </div>
+                <div id="grid-mesas-caja" class="grid-mesas">
+                    <div class="alerta-vacia total-ancho">Cargando cuentas activas del restaurante...</div>
+                </div>
+            </section>
+
+            <!-- SECCIÓN: BANCO EN TIEMPO REAL -->
+            <section class="mesa-list-container" style="border: 1px solid rgba(255,255,255,0.06); background: rgba(15,23,42,0.3); padding: 1.25rem; border-radius: 16px;">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.4rem;">🏦</span>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #fff;">Banco en Vivo: Conciliador Receptor</h2>
+                            <small style="color: var(--color-text-muted); font-size: 0.725rem;">Pago Móvil Interbancario (BDV/Banesco API)</small>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="bcv-rate-indicator" style="background: rgba(250,204,21,0.08); color: #facc15; border: 1px dashed rgba(250,204,21,0.25); font-size: 0.7rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px; display: none; align-items: center; gap: 4px;">
+                            🏦 BCV: Bs. <span id="bcv-rate-value">--.--</span>
+                        </span>
+                        <span id="bank-connection-indicator" style="background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 0.7rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.5px; text-transform: uppercase;">
+                            🟢 API ONLINE
+                        </span>
+                    </div>
+                </div>
+                
+                <div style="font-size: 0.775rem; color: var(--color-text-muted); display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span>Transacciones entrantes recientes (Frecuencia: ~60s):</span>
+                    <button onclick="CajaController.generarPagoSimuladoBancario()" style="background: rgba(255,107,0,0.12); color: #ff6b00; border: 1px solid rgba(255,107,0,0.3); padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255,107,0,0.25)'" onmouseout="this.style.background='rgba(255,107,0,0.12)'">
+                        ⚡ Simular Depósito
+                    </button>
+                </div>
+
+                <div id="bank-transactions-feed" style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+                    <div style="text-align: center; color: var(--color-text-muted); font-size: 0.8rem; padding: 20px 0;">
+                        Conectando con la pasarela bancaria...
+                    </div>
+                </div>
+            </section>
+        </div>
 
         <!-- SECCIÓN DERECHA: LIQUIDADORA DE PAGOS -->
         <section class="facturadora-panel">
@@ -731,6 +946,15 @@
                     </div>
                 </div>
 
+                <!-- ALERTA DE CLIENTE RETIRANDO FACTURA POR PAGO MÓVIL / AUTOSERVICIO -->
+                <div id="caja-aviso-retiro-factura" style="display: none; background: rgba(255, 107, 0, 0.08); border: 1px solid rgba(255, 107, 0, 0.25); border-radius: 10px; padding: 10px 14px; margin: 10px 24px 0; color: #fff; font-size: 0.75rem; align-items: center; gap: 10px; line-height: 1.4;">
+                    <span style="font-size: 1.3rem; animation: pulse 1.5s infinite;">🔔</span>
+                    <div>
+                        <strong style="color: var(--primary); font-size: 0.8rem; display: block; margin-bottom: 2px;">CLIENTE RETIRA EN CAJA</strong>
+                        Pedido de auto-servicio por QR. Tras confirmar el Pago Móvil, imprima y entregue su factura.
+                    </div>
+                </div>
+
                 <div class="factura-body">
                     <div id="cuenta-items-list" class="cuenta-items-list">
                         <!-- Items inyectados -->
@@ -745,6 +969,18 @@
                     <div class="total-pay-box">
                         <span class="total-pay-label">MONTO TOTAL NETO:</span>
                         <span id="cuenta-total-resumen" class="total-pay-value">$0.00</span>
+                    </div>
+
+                    <!-- Soporte de Ticket Personalizado -->
+                    <div style="margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn-checkout" onclick="CajaController.imprimirTicketSoporte('CANCELADO')" style="background: var(--color-success); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; color: #fff; font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+                            <span>🖨️ Factura</span>
+                            <small style="font-size: 0.65rem; opacity: 0.8;">CANCELADO</small>
+                        </button>
+                        <button class="btn-checkout" onclick="CajaController.imprimirTicketSoporte('PRE-FACTURA')" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; color: #fff; font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
+                            <span>🧾 Pre-Factura</span>
+                            <small style="font-size: 0.65rem; opacity: 0.8;">PENDIENTE</small>
+                        </button>
                     </div>
 
                     <!-- Input para cálculo de vueltos (Efectivo) -->
@@ -818,6 +1054,22 @@
             </div>
         </section>
     </main>
+
+    <!-- MODAL DE CONCILIACIÓN BANCARIA EN TIEMPO REAL (NUEVO) -->
+    <div id="bank-reconciliation-modal" class="reconcile-modal">
+        <div class="reconcile-modal-content">
+            <div class="reconcile-modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">🏦</span>
+                    <h3>Verificación y Conciliación Bancaria</h3>
+                </div>
+                <button onclick="CajaController.cerrarReconciliationModal()" style="background: none; border: none; color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='var(--color-text-muted)'">×</button>
+            </div>
+            <div class="reconcile-modal-body" id="reconcile-modal-body">
+                <!-- Se rellena dinámicamente por JS -->
+            </div>
+        </div>
+    </div>
 
     <!-- DATOS Y LOGICA COMPARTIDA -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
