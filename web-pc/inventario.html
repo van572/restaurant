@@ -202,6 +202,195 @@
             gap: 12px;
             margin-top: 20px;
         }
+
+        /* --- ESTILOS APROVECHAMIENTO --- */
+        .aprovechamiento-panel {
+            background: var(--surface);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+        .aprovechamiento-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 15px;
+        }
+        @media (max-width: 992px) {
+            .aprovechamiento-grid { grid-template-columns: 1fr; }
+        }
+        .aprovechamiento-box {
+            background: rgba(0,0,0,0.15);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .chart-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .chart-label-group {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .chart-name {
+            color: #fff;
+        }
+        .chart-value {
+            color: var(--primary);
+        }
+        .chart-bar-bg {
+            height: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 100px;
+            overflow: hidden;
+            position: relative;
+        }
+        .chart-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, #ff8c3a 100%);
+            border-radius: 100px;
+            transition: width 0.8s ease-in-out;
+        }
+        .chart-bar-fill.warning {
+            background: linear-gradient(90deg, #facc15 0%, #ffe066 100%);
+        }
+        .chart-bar-fill.success {
+            background: linear-gradient(90deg, var(--accent) 0%, #5af29e 100%);
+        }
+        .chart-bar-fill.danger {
+            background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+        }
+        
+        .vencimiento-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+        .vencimiento-row:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(255,255,255,0.1);
+        }
+        .vencimiento-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .vencimiento-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        .vencimiento-date {
+            font-size: 0.75rem;
+            color: var(--dim);
+        }
+        .vencimiento-status {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-align: right;
+        }
+        .vencimiento-status.expired {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+        .vencimiento-status.soon {
+            background: rgba(250, 204, 21, 0.15);
+            color: #facc15;
+        }
+        .vencimiento-status.ok {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--accent);
+        }
+
+        /* --- ESTILOS DESPOSTE --- */
+        .desposte-panel {
+            background: var(--surface);
+            padding: 25px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 40px;
+            box-shadow: var(--shadow);
+        }
+        .desposte-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.8fr;
+            gap: 25px;
+            margin-top: 15px;
+        }
+        @media (max-width: 768px) {
+            .desposte-grid { grid-template-columns: 1fr; }
+        }
+        .desposte-box {
+            background: rgba(0,0,0,0.15);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .desposte-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+        .cuts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .merma-badge {
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 230, 118, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(0, 230, 118, 0.2);
+            transition: all 0.3s ease;
+        }
+        .merma-badge.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ff4747;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.85; }
+            50% { opacity: 1; transform: scale(1.01); }
+            100% { opacity: 0.85; }
+        }
     </style>
 </head>
 <body>
@@ -239,6 +428,135 @@
                 <div class="meta" id="ventas-msg">Items vendidos</div>
             </div>
         </div>
+
+        <!-- 🍏 ALERTAS DE APROVECHAMIENTO Y MERMAS (NUEVO) -->
+        <section class="aprovechamiento-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 5px; flex-wrap: wrap;">
+                <h2 style="display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                    <span>🍏</span> Alertas de Aprovechamiento y Mermas
+                </h2>
+                <button class="btn btn-surface" onclick="Inventario.exportarReporteMermasCSV()" style="font-size: 0.85rem; padding: 8px 16px; border: 1px dashed rgba(255,107,0,0.3); color: var(--primary); display: flex; align-items: center; gap: 6px;">
+                    <ion-icon name="cloud-download-outline"></ion-icon> Exportar Reporte Mermas
+                </button>
+            </div>
+            <p style="color: var(--dim); font-size: 0.85rem; margin-bottom: 20px;">
+                Supervisión en tiempo real del ciclo de vida de tus productos. Identifica mermas críticas y recibe alertas preventivas de vencimiento.
+            </p>
+
+            <div class="aprovechamiento-grid">
+                <!-- PANEL 1: PRODUCTOS PRÓXIMOS A VENCER -->
+                <div class="aprovechamiento-box">
+                    <div class="desposte-title" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                        <span>🚨</span> Alertas de Vencimiento
+                    </div>
+                    <div class="chart-container" id="vencimiento-container">
+                        <!-- Dinámico -->
+                    </div>
+                </div>
+
+                <!-- PANEL 2: GRÁFICO DE MERMAS ACUMULADAS (BAR CHART) -->
+                <div class="aprovechamiento-box">
+                    <div class="desposte-title" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
+                        <span>📊</span> Gráfico de Mermas Críticas (Kg/Unid)
+                    </div>
+                    <div class="chart-container" id="mermas-chart-container">
+                        <!-- Dinámico: Gráfico de barras horizontales -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 🥩 MÓDULO DE DESPOSTE Y TRANSFORMACIÓN DE PORCINOS -->
+        <section class="desposte-panel">
+            <h2 style="display: flex; align-items: center; gap: 10px; font-size: 1.3rem;">
+                <span>🥩</span> Módulo de Desposte y Transformación de Porcinos
+            </h2>
+            <p style="color: var(--dim); font-size: 0.85rem; margin-top: 4px; margin-bottom: 20px;">
+                Registra el ingreso de cochinos enteros en canal y transfórmalos de manera automatizada en cortes comerciales y derivados, gestionando mermas y previniendo pérdidas.
+            </p>
+
+            <div class="desposte-grid">
+                <!-- COLUMNA 1: INGRESO MATERIA PRIMA -->
+                <div class="desposte-box">
+                    <div class="desposte-title">
+                        <span>📥</span> Ingreso de Materia Prima
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--dim); margin-bottom: 5px;">
+                        Registra la compra de reses/cochinos enteros (en kilogramos).
+                    </p>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Cantidad Ingresada (Kg)</label>
+                        <input type="number" id="materia-prima-ingreso-kg" min="0.1" step="0.1" placeholder="Ej. 150.0">
+                    </div>
+                    <button class="btn btn-primary" onclick="Inventario.registrarIngresoMateriaPrima()" style="width: 100%; justify-content: center;">
+                        <ion-icon name="cloud-upload-outline"></ion-icon> Registrar Compra
+                    </button>
+                    
+                    <div style="margin-top: 15px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--dim); display: block;">Materia Prima Disponible</span>
+                        <strong style="font-size: 1.4rem; color: var(--primary); display: block; margin-top: 2px;" id="materia-prima-disponible-lbl">0.00 Kg</strong>
+                    </div>
+                </div>
+
+                <!-- COLUMNA 2: MÓDULO DE DESPOSTE / TRANSFORMACIÓN -->
+                <div class="desposte-box">
+                    <div class="desposte-title" style="justify-content: space-between;">
+                        <span>⚙️ Proceso de Desposte (Despiece)</span>
+                        <span style="font-size: 0.75rem; color: var(--dim);" id="cochino-disponible-box-lbl">Disponible: 0.0 Kg</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Cantidad a Procesar (Kg)</label>
+                            <input type="number" id="desposte-materia-prima-kg" min="0.1" step="0.1" placeholder="Ej. 100.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>1. Cortes: Chuleta (Kg)</label>
+                            <input type="number" id="desposte-chuleta-kg" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                    </div>
+                    
+                    <div class="cuts-grid">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>2. Pernil (Kg)</label>
+                            <input type="number" id="desposte-pernil-kg" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>3. Paleta (Kg)</label>
+                            <input type="number" id="desposte-paleta-kg" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>4. Lomo (Peine) (Kg)</label>
+                            <input type="number" id="desposte-lomo-kg" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>5. Tocino (Kg)</label>
+                            <input type="number" id="desposte-tocino-kg" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>6. Manteca (Litros)</label>
+                            <input type="number" id="desposte-manteca-litros" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>7. Aprovechamiento Embutidos (Kg)</label>
+                            <input type="number" id="desposte-embutidos-kg" min="0" step="0.1" placeholder="0.0" oninput="Inventario.calcularMermasDesposte()" title="Carne para embutidos (Chorizo/Chicharrón) para evitar mermas">
+                        </div>
+                    </div>
+
+                    <!-- MERMAS Y ALERTAS -->
+                    <div class="merma-badge" id="merma-resultado-badge">
+                        <span>Pérdida / Merma de Proceso:</span>
+                        <strong id="merma-resultado-val">0.0 Kg</strong>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="Inventario.procesarDesposteTransformacion()" style="width: 100%; justify-content: center; background: linear-gradient(135deg, var(--primary) 0%, #d84f00 100%);">
+                        <ion-icon name="cut-outline"></ion-icon> Procesar Transformación de Porcino
+                    </button>
+                </div>
+            </div>
+        </section>
 
         <div class="table-container">
             <table>
@@ -305,6 +623,17 @@
                     <input type="number" id="p-min" step="0.001" required value="5">
                 </div>
 
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Fecha de Vencimiento</label>
+                        <input type="date" id="p-vencimiento">
+                    </div>
+                    <div class="form-group">
+                        <label>Merma Acumulada (Kg/Unid)</label>
+                        <input type="number" id="p-merma" step="0.1" value="0.0">
+                    </div>
+                </div>
+
                 <div class="modal-actions">
                     <button type="button" class="btn btn-surface" onclick="Inventario.cerrarModal()">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Guardar Producto</button>
@@ -329,13 +658,45 @@
             timeoutScanner: null,
 
             async init() {
+                this.initAprovechamientoMockData();
                 await this.fetchInventory();
                 await this.fetchVentasHoy();
                 this.setupScanner();
                 this.setupForm();
             },
 
+            async verificarYCrearProductosPorcinos() {
+                try {
+                    const { data: existing, error } = await window.supabaseClient
+                        .from('productos_venta')
+                        .select('nombre');
+                    if (error) throw error;
+                    
+                    const listToEnsure = [
+                        { nombre: "Cochino Entero (Materia Prima)", codigo_barras: "PORK-RAW", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 0.00, stock: 0.0, stock_minimo: 10.0 },
+                        { nombre: "Chuleta de Cerdo", codigo_barras: "PORK-CHULETA", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 6.50, stock: 0.0, stock_minimo: 5.0 },
+                        { nombre: "Pernil de Cerdo", codigo_barras: "PORK-PERNIL", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 7.00, stock: 0.0, stock_minimo: 5.0 },
+                        { nombre: "Paleta de Cerdo", codigo_barras: "PORK-PALETA", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 5.50, stock: 0.0, stock_minimo: 5.0 },
+                        { nombre: "Lomo de Cerdo", codigo_barras: "PORK-LOMO", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 8.00, stock: 0.0, stock_minimo: 5.0 },
+                        { nombre: "Tocino de Cerdo", codigo_barras: "PORK-TOCINO", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 3.00, stock: 0.0, stock_minimo: 3.0 },
+                        { nombre: "Manteca de Cerdo", codigo_barras: "PORK-MANTECA", categoria: "PARRILLA", unidad_medida: "unid", precio_base: 2.50, stock: 0.0, stock_minimo: 2.0 },
+                        { nombre: "Materia Prima para Embutidos", codigo_barras: "PORK-EMBUTIDOS", categoria: "PARRILLA", unidad_medida: "kg", precio_base: 4.00, stock: 0.0, stock_minimo: 5.0 }
+                    ];
+
+                    for (const item of listToEnsure) {
+                        const exists = existing.some(p => p.nombre.toLowerCase() === item.nombre.toLowerCase());
+                        if (!exists) {
+                            console.log("Creando producto porcino faltante:", item.nombre);
+                            await window.supabaseClient.from('productos_venta').insert(item);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error verificando productos de porcino:", e);
+                }
+            },
+
             async fetchInventory() {
+                await this.verificarYCrearProductosPorcinos();
                 const { data, error } = await window.supabaseClient
                     .from('productos_venta')
                     .select('*')
@@ -345,6 +706,169 @@
                 this.data = data;
                 this.render();
                 this.updateStats();
+                this.actualizarUIUI();
+                this.renderAprovechamiento();
+            },
+
+            actualizarUIUI() {
+                const mp = this.data.find(p => p.nombre === "Cochino Entero (Materia Prima)");
+                const stock = mp ? mp.stock : 0;
+                
+                const mpLbl1 = document.getElementById('materia-prima-disponible-lbl');
+                const mpLbl2 = document.getElementById('cochino-disponible-box-lbl');
+                
+                if (mpLbl1) mpLbl1.textContent = `${stock.toFixed(2)} Kg`;
+                if (mpLbl2) mpLbl2.textContent = `Disponible: ${stock.toFixed(2)} Kg`;
+            },
+
+            calcularMermasDesposte() {
+                const raw = parseFloat(document.getElementById('desposte-materia-prima-kg').value) || 0;
+                
+                const chuleta = parseFloat(document.getElementById('desposte-chuleta-kg').value) || 0;
+                const pernil = parseFloat(document.getElementById('desposte-pernil-kg').value) || 0;
+                const paleta = parseFloat(document.getElementById('desposte-paleta-kg').value) || 0;
+                const lomo = parseFloat(document.getElementById('desposte-lomo-kg').value) || 0;
+                const tocino = parseFloat(document.getElementById('desposte-tocino-kg').value) || 0;
+                const manteca = parseFloat(document.getElementById('desposte-manteca-litros').value) || 0;
+                const embutidos = parseFloat(document.getElementById('desposte-embutidos-kg').value) || 0;
+                
+                const sumCuts = chuleta + pernil + paleta + lomo + tocino + manteca + embutidos;
+                const merma = Math.max(0, raw - sumCuts);
+                
+                const mermaLbl = document.getElementById('merma-resultado-val');
+                const mermaBadge = document.getElementById('merma-resultado-badge');
+                
+                if (mermaLbl) mermaLbl.textContent = `${merma.toFixed(1)} Kg`;
+                
+                if (mermaBadge) {
+                    if (merma > 2.0 && raw > 0) {
+                        mermaBadge.classList.add('danger');
+                        mermaLbl.innerHTML = `${merma.toFixed(1)} Kg ⚠️ <span style="font-size:0.7rem; font-weight:normal; display:block; margin-top:2px;">MERMA ALTA (Tolerable: 2kg)</span>`;
+                    } else {
+                        mermaBadge.classList.remove('danger');
+                        mermaLbl.textContent = `${merma.toFixed(1)} Kg`;
+                    }
+                }
+            },
+
+            async registrarIngresoMateriaPrima() {
+                const inputKg = document.getElementById('materia-prima-ingreso-kg');
+                const cant = parseFloat(inputKg.value) || 0;
+                if (cant <= 0) {
+                    Toast.error("Error", "Ingresa una cantidad mayor a 0 Kg.");
+                    return;
+                }
+
+                try {
+                    const mp = this.data.find(p => p.nombre === "Cochino Entero (Materia Prima)");
+                    if (!mp) throw new Error("No se encontró el producto de materia prima.");
+
+                    const nuevoStock = mp.stock + cant;
+                    const { error } = await window.supabaseClient
+                        .from('productos_venta')
+                        .update({ stock: nuevoStock })
+                        .eq('id', mp.id);
+
+                    if (error) throw error;
+
+                    Toast.success("Compra Registrada", `Se agregaron ${cant.toFixed(2)} Kg de Cochino Entero.`);
+                    inputKg.value = "";
+                    await this.fetchInventory();
+                } catch (e) {
+                    Toast.error("Error", e.message);
+                }
+            },
+
+            async procesarDesposteTransformacion() {
+                const rawInput = parseFloat(document.getElementById('desposte-materia-prima-kg').value) || 0;
+                if (rawInput <= 0) {
+                    Toast.error("Error", "Ingresa la cantidad de Materia Prima a procesar.");
+                    return;
+                }
+
+                const mp = this.data.find(p => p.nombre === "Cochino Entero (Materia Prima)");
+                if (!mp || mp.stock < rawInput) {
+                    Toast.error("Stock Insuficiente", `No tienes suficiente Materia Prima disponible (${mp ? mp.stock.toFixed(2) : 0} Kg).`);
+                    return;
+                }
+
+                const chuleta = parseFloat(document.getElementById('desposte-chuleta-kg').value) || 0;
+                const pernil = parseFloat(document.getElementById('desposte-pernil-kg').value) || 0;
+                const paleta = parseFloat(document.getElementById('desposte-paleta-kg').value) || 0;
+                const lomo = parseFloat(document.getElementById('desposte-lomo-kg').value) || 0;
+                const tocino = parseFloat(document.getElementById('desposte-tocino-kg').value) || 0;
+                const manteca = parseFloat(document.getElementById('desposte-manteca-litros').value) || 0;
+                const embutidos = parseFloat(document.getElementById('desposte-embutidos-kg').value) || 0;
+
+                const sumCuts = chuleta + pernil + paleta + lomo + tocino + manteca + embutidos;
+                if (sumCuts <= 0) {
+                    Toast.error("Cortes Vacíos", "Especifica al menos un subproducto o corte resultante.");
+                    return;
+                }
+
+                const merma = rawInput - sumCuts;
+                if (merma < 0) {
+                    Toast.error("Inconsistencia", "El peso de los cortes resultantes supera al de la materia prima.");
+                    return;
+                }
+
+                if (merma > 2.0) {
+                    const confirmLoss = confirm(`⚠️ ALERTA DE PÉRDIDA: La merma calculada es de ${merma.toFixed(2)} Kg, lo que supera el límite tolerable de 2.0 Kg.\n\n¿Estás seguro de continuar con la producción y registrar esta pérdida?`);
+                    if (!confirmLoss) return;
+                } else {
+                    if (!confirm("¿Confirmar el proceso de desposte y transformación de " + rawInput.toFixed(2) + " Kg?")) return;
+                }
+
+                try {
+                    // Actualizar materias primas y cortes
+                    const updates = [
+                        { name: "Cochino Entero (Materia Prima)", diff: -rawInput },
+                        { name: "Chuleta de Cerdo", diff: chuleta },
+                        { name: "Pernil de Cerdo", diff: pernil },
+                        { name: "Paleta de Cerdo", diff: paleta },
+                        { name: "Lomo de Cerdo", diff: lomo },
+                        { name: "Tocino de Cerdo", diff: tocino },
+                        { name: "Manteca de Cerdo", diff: manteca },
+                        { name: "Materia Prima para Embutidos", diff: embutidos }
+                    ];
+
+                    for (const item of updates) {
+                        if (item.diff === 0) continue;
+                        const p = this.data.find(x => x.nombre === item.name);
+                        if (p) {
+                            const { error } = await window.supabaseClient
+                                .from('productos_venta')
+                                .update({ stock: Math.max(0, p.stock + item.diff) })
+                                .eq('id', p.id);
+                            if (error) throw error;
+                        }
+                    }
+
+                    // Registrar merma de desposte en el aprovechamiento de la materia prima
+                    if (merma > 0) {
+                        try {
+                            const ap = this.getAprovechamiento("PORK-RAW");
+                            this.saveAprovechamiento("PORK-RAW", ap.vencimiento, ap.merma + merma);
+                        } catch (e) { console.warn(e); }
+                    }
+
+                    Toast.success("Transformación Exitosa", "Se redujo la materia prima y se registraron los nuevos cortes.");
+                    
+                    // Limpiar campos
+                    document.getElementById('desposte-materia-prima-kg').value = "";
+                    document.getElementById('desposte-chuleta-kg').value = "";
+                    document.getElementById('desposte-pernil-kg').value = "";
+                    document.getElementById('desposte-paleta-kg').value = "";
+                    document.getElementById('desposte-lomo-kg').value = "";
+                    document.getElementById('desposte-tocino-kg').value = "";
+                    document.getElementById('desposte-manteca-litros').value = "";
+                    document.getElementById('desposte-embutidos-kg').value = "";
+                    this.calcularMermasDesposte();
+
+                    await this.fetchInventory();
+                } catch (e) {
+                    Toast.error("Error", e.message);
+                }
             },
 
             async fetchVentasHoy() {
@@ -448,6 +972,8 @@
             abrirModalRegistro() {
                 document.getElementById('product-form').reset();
                 document.getElementById('p-id').value = "";
+                document.getElementById('p-vencimiento').value = "";
+                document.getElementById('p-merma').value = "0.0";
                 document.getElementById('modal-title').textContent = "Registrar Nuevo";
                 document.getElementById('modal-overlay').style.display = 'grid';
                 document.getElementById('p-barcode').focus();
@@ -466,6 +992,11 @@
                 document.getElementById('p-stock').value = p.stock;
                 document.getElementById('p-min').value = p.stock_minimo;
 
+                // Cargar datos de vencimiento y merma de localStorage
+                const ap = this.getAprovechamiento(p.codigo_barras);
+                document.getElementById('p-vencimiento').value = ap.vencimiento || "";
+                document.getElementById('p-merma').value = ap.merma || 0.0;
+
                 document.getElementById('modal-title').textContent = "Editar Producto";
                 document.getElementById('modal-overlay').style.display = 'grid';
             },
@@ -480,8 +1011,9 @@
                     e.preventDefault();
                     
                     const id = document.getElementById('p-id').value;
+                    const barcode = document.getElementById('p-barcode').value;
                     const payload = {
-                        codigo_barras: document.getElementById('p-barcode').value,
+                        codigo_barras: barcode,
                         nombre: document.getElementById('p-name').value,
                         categoria: document.getElementById('p-category').value,
                         unidad_medida: document.getElementById('p-unit').value,
@@ -500,11 +1032,257 @@
                     if (res.error) {
                         Toast.error("Error al guardar", res.error.message);
                     } else {
+                        // Guardar datos de vencimiento y merma localmente
+                        const vencimiento = document.getElementById('p-vencimiento').value;
+                        const merma = parseFloat(document.getElementById('p-merma').value) || 0;
+                        this.saveAprovechamiento(barcode, vencimiento, merma);
+
                         Toast.success("Inventario Actualizado", `${payload.nombre} guardado correctamente.`);
                         this.cerrarModal();
                         this.fetchInventory();
                     }
                 };
+            },
+
+            initAprovechamientoMockData() {
+                if (localStorage.getItem("aprovechamiento_init_v2")) return;
+                
+                const today = new Date();
+                const formatDate = (d) => d.toISOString().split('T')[0];
+                const addDays = (days) => {
+                    const d = new Date();
+                    d.setDate(today.getDate() + days);
+                    return formatDate(d);
+                };
+
+                const initialData = {
+                    "PORK-RAW": { vencimiento: addDays(4), merma: 14.5 },
+                    "PORK-CHULETA": { vencimiento: addDays(3), merma: 2.4 },
+                    "PORK-PERNIL": { vencimiento: addDays(5), merma: 1.2 },
+                    "PORK-LOMO": { vencimiento: addDays(2), merma: 3.1 },
+                    "1001": { vencimiento: addDays(1), merma: 4.8 },
+                    "1002": { vencimiento: addDays(6), merma: 2.5 },
+                    "2001": { vencimiento: addDays(-1), merma: 0.8 },
+                    "1004": { vencimiento: addDays(7), merma: 1.5 }
+                };
+
+                for (const [barcode, data] of Object.entries(initialData)) {
+                    localStorage.setItem(`ap_venc_${barcode}`, data.vencimiento);
+                    localStorage.setItem(`ap_merma_${barcode}`, data.merma.toString());
+                }
+
+                localStorage.setItem("aprovechamiento_init_v2", "true");
+            },
+
+            getAprovechamiento(barcode) {
+                this.initAprovechamientoMockData();
+                return {
+                    vencimiento: localStorage.getItem(`ap_venc_${barcode}`) || "",
+                    merma: parseFloat(localStorage.getItem(`ap_merma_${barcode}`)) || 0.0
+                };
+            },
+
+            saveAprovechamiento(barcode, vencimiento, merma) {
+                localStorage.setItem(`ap_venc_${barcode}`, vencimiento || "");
+                localStorage.setItem(`ap_merma_${barcode}`, (parseFloat(merma) || 0).toString());
+                // Forzar actualización inmediata si el dataset local ya existe
+                try {
+                    this.renderAprovechamiento();
+                } catch(e){}
+            },
+
+            renderAprovechamiento() {
+                const vencimientoContainer = document.getElementById('vencimiento-container');
+                const mermasChartContainer = document.getElementById('mermas-chart-container');
+                if (!vencimientoContainer || !mermasChartContainer) return;
+
+                const today = new Date();
+                today.setHours(0,0,0,0);
+
+                const productsWithAp = this.data.map(p => {
+                    const ap = this.getAprovechamiento(p.codigo_barras);
+                    return {
+                        ...p,
+                        vencimiento: ap.vencimiento,
+                        merma: ap.merma
+                    };
+                });
+
+                // 1. RENDERIZAR VENCIMIENTOS
+                const vencimientos = productsWithAp
+                    .filter(p => p.vencimiento)
+                    .map(p => {
+                        const targetDate = new Date(p.vencimiento + 'T00:00:00');
+                        const diffTime = targetDate - today;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return { ...p, diffDays };
+                    })
+                    .sort((a, b) => a.diffDays - b.diffDays);
+
+                if (vencimientos.length === 0) {
+                    vencimientoContainer.innerHTML = `
+                        <div style="text-align:center; padding: 30px; color: var(--dim); font-size: 0.9rem;">
+                            <ion-icon name="checkmark-circle-outline" style="font-size: 2rem; color: var(--accent); margin-bottom: 8px; display:block; margin-inline:auto;"></ion-icon>
+                            No hay productos con fecha de vencimiento configurada.
+                        </div>
+                    `;
+                } else {
+                    vencimientoContainer.innerHTML = vencimientos.slice(0, 5).map(p => {
+                        let statusClass = "ok";
+                        let statusText = `En orden (${p.diffDays} d)`;
+                        let progressColor = "success";
+                        let percent = 100;
+
+                        if (p.diffDays < 0) {
+                            statusClass = "expired";
+                            statusText = `VENCIDO! (${Math.abs(p.diffDays)} d)`;
+                            progressColor = "danger";
+                            percent = 0;
+                        } else if (p.diffDays <= 2) {
+                            statusClass = "expired";
+                            statusText = `CRÍTICO! (${p.diffDays} d)`;
+                            progressColor = "danger";
+                            percent = (p.diffDays / 7) * 100;
+                        } else if (p.diffDays <= 5) {
+                            statusClass = "soon";
+                            statusText = `Próximo (${p.diffDays} d)`;
+                            progressColor = "warning";
+                            percent = (p.diffDays / 7) * 100;
+                        } else {
+                            percent = Math.min(100, (p.diffDays / 15) * 100);
+                        }
+
+                        // Formatear fecha
+                        const fParts = p.vencimiento.split('-');
+                        const fPretty = fParts.length === 3 ? `${fParts[2]}/${fParts[1]}/${fParts[0]}` : p.vencimiento;
+
+                        return `
+                            <div class="vencimiento-row" onclick="Inventario.editarProducto(${p.id})" style="cursor:pointer;">
+                                <div class="vencimiento-info">
+                                    <span class="vencimiento-name">${p.nombre}</span>
+                                    <span class="vencimiento-date">Vence: ${fPretty}</span>
+                                </div>
+                                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; width:45%;">
+                                    <span class="vencimiento-status ${statusClass}">${statusText}</span>
+                                    <div class="chart-bar-bg" style="width:100%; height:6px;">
+                                        <div class="chart-bar-fill ${progressColor}" style="width: ${percent}%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // 2. RENDERIZAR MERMAS (GRÁFICO DE BARRAS)
+                const mermas = productsWithAp
+                    .filter(p => p.merma > 0)
+                    .sort((a, b) => b.merma - a.merma);
+
+                if (mermas.length === 0) {
+                    mermasChartContainer.innerHTML = `
+                        <div style="text-align:center; padding: 30px; color: var(--dim); font-size: 0.9rem;">
+                            <ion-icon name="bar-chart-outline" style="font-size: 2rem; color: var(--primary); margin-bottom: 8px; display:block; margin-inline:auto;"></ion-icon>
+                            Sin mermas registradas. ¡Excelente aprovechamiento!
+                        </div>
+                    `;
+                } else {
+                    const maxMerma = Math.max(...mermas.map(m => m.merma), 1);
+                    mermasChartContainer.innerHTML = `
+                        <div class="chart-container">
+                            ${mermas.slice(0, 5).map(p => {
+                                const barPercent = (p.merma / maxMerma) * 100;
+                                let colorClass = "success";
+                                if (p.merma > 10) colorClass = "danger";
+                                else if (p.merma > 3) colorClass = "warning";
+
+                                return `
+                                    <div class="chart-row" onclick="Inventario.editarProducto(${p.id})" style="cursor:pointer;">
+                                        <div class="chart-label-group">
+                                            <span class="chart-name">${p.nombre}</span>
+                                            <span class="chart-value">${p.merma.toFixed(1)} ${p.unidad_medida}</span>
+                                        </div>
+                                        <div class="chart-bar-bg">
+                                            <div class="chart-bar-fill ${colorClass}" style="width: ${barPercent}%;"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            },
+
+            exportarReporteMermasCSV() {
+                try {
+                    const productsWithAp = this.data.map(p => {
+                        const ap = this.getAprovechamiento(p.codigo_barras);
+                        return {
+                            ...p,
+                            vencimiento: ap.vencimiento,
+                            merma: ap.merma
+                        };
+                    });
+
+                    // Filtrar productos con merma registrada (> 0), ordenados de mayor a menor merma
+                    const filtered = productsWithAp.filter(p => p.merma > 0).sort((a, b) => b.merma - a.merma);
+
+                    if (filtered.length === 0) {
+                        Toast.error("Sin Datos", "No hay productos con registro de mermas para exportar.");
+                        return;
+                    }
+
+                    // Definir encabezados de columnas para el análisis contable
+                    const headers = [
+                        "ID",
+                        "Codigo de Barras",
+                        "Nombre del Producto",
+                        "Categoria",
+                        "Unidad de Medida",
+                        "Stock Actual",
+                        "Stock Minimo",
+                        "Fecha de Vencimiento",
+                        "Merma Acumulada",
+                        "Estado de Alerta de Merma"
+                    ];
+
+                    // Generar filas formateadas
+                    const rows = filtered.map(p => {
+                        let severity = "Baja / Aceptable";
+                        if (p.merma > 10) severity = "Critica (Alta)";
+                        else if (p.merma > 3) severity = "Moderada";
+
+                        return [
+                            p.id,
+                            `"${p.codigo_barras}"`,
+                            `"${p.nombre.replace(/"/g, '""')}"`,
+                            `"${p.categoria.replace(/"/g, '""')}"`,
+                            `"${p.unidad_medida}"`,
+                            p.stock.toFixed(2),
+                            p.stock_minimo.toFixed(2),
+                            p.vencimiento || "No configurada",
+                            p.merma.toFixed(2),
+                            `"${severity}"`
+                        ];
+                    });
+
+                    // Generar contenido CSV con BOM UTF-8 para compatibilidad completa con Microsoft Excel
+                    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+                    // Crear el archivo blob y simular clic de descarga
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `reporte_mermas_contabilidad_${new Date().toISOString().split('T')[0]}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    Toast.success("Reporte Exportado", "Se ha descargado el archivo CSV de mermas.");
+                } catch (e) {
+                    console.error("Error al exportar CSV:", e);
+                    Toast.error("Error", "No se pudo generar el reporte CSV de mermas.");
+                }
             }
         };
 

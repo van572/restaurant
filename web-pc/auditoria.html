@@ -444,6 +444,67 @@
             border-color: var(--color-text-muted);
         }
 
+        /* --- ESTILOS DE TRANSICIONES Y SKELETON LOADERS --- */
+        .page-fade-in {
+            opacity: 0;
+            animation: pageIn 0.35s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pageIn {
+            to { opacity: 1; }
+        }
+
+        .page-fade-out {
+            opacity: 1;
+            transform: scale(1);
+            animation: pageOut 0.25s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pageOut {
+            to { opacity: 0; transform: scale(0.98); }
+        }
+
+        /* Top Progress Bar for instant navigation feedback */
+        #top-nav-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+            z-index: 99999;
+            width: 0%;
+            transition: width 0.4s ease, opacity 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
+            pointer-events: none;
+        }
+
+        /* Skeleton Table styling */
+        .skeleton-cell {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-cell::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 107, 0, 0.08),
+                transparent
+            );
+            background-size: 200% 100%;
+            animation: shimmer-animation 1.5s infinite linear;
+        }
+
+        @keyframes shimmer-animation {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
         @media(max-width: 900px) {
             .table-header-row.flex-col-on-mobile {
                 flex-direction: column;
@@ -518,6 +579,29 @@
             <div class="table-auditoria-panel">
                 <h3>🍰 Distribución por Categoría</h3>
                 <canvas id="chart-pie-categorias" height="220"></canvas>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DE ANALÍTICAS D3 (HORAS PICO Y PLATO MÁS VENDIDO) -->
+        <section style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; margin-top: 0.5rem;" class="seccion-d3-analytics">
+            <div class="table-auditoria-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
+                    <h3 style="display: flex; align-items: center; gap: 8px; font-size: 1.05rem;">
+                        <span>⏰</span> Horas Pico de Ventas (D3)
+                    </h3>
+                    <span style="font-size: 0.75rem; background: rgba(255, 107, 0, 0.12); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255, 107, 0, 0.2); color: var(--color-primary); font-family: var(--font-mono); font-weight: bold;" id="peak-hour-badge">Hora Pico: --</span>
+                </div>
+                <div id="d3-horas-pico-chart" style="width: 100%; height: 240px; position: relative;"></div>
+            </div>
+            
+            <div class="table-auditoria-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px;">
+                    <h3 style="display: flex; align-items: center; gap: 8px; font-size: 1.05rem;">
+                        <span>👑</span> Platillos Más Vendidos (D3)
+                    </h3>
+                    <span style="font-size: 0.75rem; background: rgba(255, 204, 0, 0.12); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255, 204, 0, 0.2); color: var(--color-accent); font-family: var(--font-mono); font-weight: bold;" id="best-seller-badge">Top: --</span>
+                </div>
+                <div id="d3-platillo-mas-vendido-chart" style="width: 100%; height: 240px; position: relative;"></div>
             </div>
         </section>
 
@@ -597,10 +681,38 @@
                         </tr>
                     </thead>
                     <tbody id="tbody-auditoria-logs">
-                        <tr>
-                            <td colspan="6" class="text-center" style="padding: 2.5rem; color: var(--color-text-muted);">
-                                Cargando libro diario...
-                            </td>
+                        <!-- Skeletons didácticos de carga -->
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton-cell" style="width: 50px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 140px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 80px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 100px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 70px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 130px; height: 16px; margin: auto;"></div></td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton-cell" style="width: 40px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 120px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 90px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 110px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 65px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 145px; height: 16px; margin: auto;"></div></td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton-cell" style="width: 60px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 130px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 75px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 95px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 80px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 125px; height: 16px; margin: auto;"></div></td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td><div class="skeleton-cell" style="width: 45px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 150px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 85px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 105px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 75px; height: 16px; margin: auto;"></div></td>
+                            <td><div class="skeleton-cell" style="width: 140px; height: 16px; margin: auto;"></div></td>
                         </tr>
                     </tbody>
                 </table>
@@ -629,6 +741,7 @@
     <!-- INYECCIÓN COMPARTIDA DE DATOS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <script src="assets/js/supabase-client.js"></script>
@@ -638,6 +751,37 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
+            // --- EFECTOS DE CARGA DE PÁGINA Y TRANSICIÓN ---
+            document.body.classList.add('page-fade-in');
+            const progressBar = document.createElement('div');
+            progressBar.id = 'top-nav-progress';
+            document.body.appendChild(progressBar);
+            
+            setTimeout(() => { progressBar.style.width = '40%'; }, 50);
+            setTimeout(() => { progressBar.style.width = '80%'; }, 150);
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+                setTimeout(() => { progressBar.style.opacity = '0'; }, 150);
+            }, 300);
+
+            // Interceptar enlaces de navegación del navbar para salida fluida
+            document.querySelectorAll('header nav a, .nav-links a, a.nav-button').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const href = link.getAttribute('href');
+                    if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.classList.contains('active')) return;
+                    e.preventDefault();
+                    
+                    progressBar.style.opacity = '1';
+                    progressBar.style.width = '0%';
+                    setTimeout(() => { progressBar.style.width = '85%'; }, 10);
+                    
+                    document.body.classList.add('page-fade-out');
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 250);
+                });
+            });
+
             // Inicializar auditoria
             await AuditoriaController.init();
 

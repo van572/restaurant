@@ -829,6 +829,40 @@
             border-radius: 8px;
             padding: 6px;
         }
+
+        /* --- ESTILOS DE TRANSICIONES Y CARGA SUAVE --- */
+        .page-fade-in {
+            opacity: 0;
+            animation: pageIn 0.35s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pageIn {
+            to { opacity: 1; }
+        }
+
+        .page-fade-out {
+            opacity: 1;
+            transform: scale(1);
+            animation: pageOut 0.25s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pageOut {
+            to { opacity: 0; transform: scale(0.98); }
+        }
+
+        /* Top Progress Bar for instant navigation feedback */
+        #top-nav-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+            z-index: 99999;
+            width: 0%;
+            transition: width 0.4s ease, opacity 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -971,6 +1005,13 @@
                         <span id="cuenta-total-resumen" class="total-pay-value">$0.00</span>
                     </div>
 
+                    <!-- Botón Descuento / Cortesía -->
+                    <div style="margin: 8px 0 12px 0;">
+                        <button onclick="CajaController.solicitarDescuentoMembresia()" style="background: rgba(250,204,21,0.08); border: 1px dashed rgba(250,204,21,0.3); border-radius: 8px; padding: 10px; width: 100%; text-align: center; color: #facc15; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;" onmouseover="this.style.background='rgba(250,204,21,0.15)'" onmouseout="this.style.background='rgba(250,204,21,0.08)'">
+                            🏷️ Aplicar Descuento / Cortesía (15%)
+                        </button>
+                    </div>
+
                     <!-- Soporte de Ticket Personalizado -->
                     <div style="margin: 12px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <button class="btn-checkout" onclick="CajaController.imprimirTicketSoporte('CANCELADO')" style="background: var(--color-success); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; color: #fff; font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
@@ -1071,6 +1112,38 @@
         </div>
     </div>
 
+    <!-- MODAL DE AUTORIZACIÓN DE SUPERVISOR (NUEVO - DOBLE VALIDACIÓN) -->
+    <div id="supervisor-auth-modal" class="reconcile-modal" style="display: none;">
+        <div class="reconcile-modal-content" style="max-width: 420px;">
+            <div class="reconcile-modal-header" style="border-bottom: 1px solid rgba(255,107,0,0.15);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">🛡️</span>
+                    <h3 style="color: var(--color-primary);">Autorización Requerida</h3>
+                </div>
+                <button onclick="CajaController.cerrarSupervisorModal()" style="background: none; border: none; color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer; transition: 0.2s;">×</button>
+            </div>
+            <div class="reconcile-modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+                <p id="supervisor-prompt-text" style="font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.5; text-align: center;">
+                    Esta acción requiere validación del Supervisor de Turno. Escanea la tarjeta de supervisor o ingresa el código/token de seguridad.
+                </p>
+                
+                <div class="caja-input-group" style="margin-bottom: 0;">
+                    <label style="font-size: 0.75rem; letter-spacing: 0.5px;">TOKEN DE SEGURIDAD / CLAVE</label>
+                    <input type="password" id="supervisor-token-input" class="caja-input-field" placeholder="••••••••" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px; border: 1px solid var(--color-primary); background: rgba(0,0,0,0.2);" onkeydown="if(event.key==='Enter') CajaController.confirmarSupervisorAuth()"/>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+                    <button class="btn-approve" onclick="CajaController.confirmarSupervisorAuth()" style="background: linear-gradient(135deg, var(--color-primary) 0%, #d84f00 100%); width: 100%;">
+                        🔑 Validar Autorización
+                    </button>
+                    <button class="btn-reject" onclick="CajaController.simularEscaneoSupervisor()" style="background: rgba(255,255,255,0.05); color: #fff; border: 1px dashed rgba(255,255,255,0.15); width: 100%;">
+                        📟 Simular Escaneo de Tarjeta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DATOS Y LOGICA COMPARTIDA -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/supabase-client.js"></script>
@@ -1092,10 +1165,48 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // --- EFECTOS DE CARGA DE PÁGINA Y TRANSICIÓN ---
+            document.body.classList.add('page-fade-in');
+            const progressBar = document.createElement('div');
+            progressBar.id = 'top-nav-progress';
+            document.body.appendChild(progressBar);
+            
+            setTimeout(() => { progressBar.style.width = '40%'; }, 50);
+            setTimeout(() => { progressBar.style.width = '80%'; }, 150);
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+                setTimeout(() => { progressBar.style.opacity = '0'; }, 150);
+            }, 300);
+
+            // Interceptar enlaces de navegación del navbar para salida fluida
+            document.querySelectorAll('header nav a, .nav-links a, a.nav-button, .back-to-dashboard-btn').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const href = link.getAttribute('href');
+                    if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.classList.contains('active')) return;
+                    e.preventDefault();
+                    
+                    progressBar.style.opacity = '1';
+                    progressBar.style.width = '0%';
+                    setTimeout(() => { progressBar.style.width = '85%'; }, 10);
+                    
+                    document.body.classList.add('page-fade-out');
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 250);
+                });
+            });
+
             // Inicializar caja
             await CajaController.init();
             await SolicitudesController.init();
             await AdminMenuController.init();
+
+            // Detectar pestaña inicial desde la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialTab = urlParams.get('tab');
+            if (initialTab && ['ventas', 'solicitudes', 'menu'].includes(initialTab)) {
+                switchTab(initialTab);
+            }
 
             // Configurar indicación de red
             const badge = document.getElementById('connection-status-badge');

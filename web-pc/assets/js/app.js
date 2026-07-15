@@ -610,9 +610,16 @@ const CocinaController = {
         // Enlace en tiempo real de Supabase
         if (window.DataService) {
             window.onRealtimePedidosUpdate = async (payload) => {
-                console.log("🍳 Cocina recibió notificación de cambio de datos.");
-                if (payload.eventType === 'INSERT') {
-                    AppNotifications.show(`¡Nuevo Pedido de la ${payload.new.mesa}!`, 'alerta');
+                console.log("🍳 Cocina recibió notificación de cambio de datos.", payload);
+                
+                const isApprovedNow = payload.new && payload.new.estado_pago === 'aprobado';
+                const wasPendingBefore = payload.old && payload.old.estado_pago === 'pendiente';
+                
+                // Disparar alerta e impresión automática SÓLO cuando pasa a aprobado (ya sea directo en INSERT o mediante transicion en UPDATE)
+                if ((payload.eventType === 'INSERT' && isApprovedNow) || 
+                    (payload.eventType === 'UPDATE' && isApprovedNow && wasPendingBefore)) {
+                    
+                    AppNotifications.show(`¡Comanda Liberada: Mesa ${payload.new.mesa}! 🍳`, 'alerta');
                     try {
                         console.log("🖨️ Imprimiendo comanda de cocina automáticamente...");
                         imprimirComandaCocina(payload.new);
@@ -640,7 +647,7 @@ const CocinaController = {
     async cargarYRenderizar() {
         try {
             const todos = await DataService.fetchPedidos();
-            this.pedidos = todos.filter(p => p.estado === 'pendiente' || p.estado === 'cocinando' || p.estado === 'listo');
+            this.pedidos = todos.filter(p => (p.estado === 'pendiente' || p.estado === 'cocinando' || p.estado === 'listo') && p.estado_pago === 'aprobado');
             this.renderListas();
         } catch (e) {
             console.error("Error al cargar pedidos en Cocina:", e);
@@ -845,7 +852,18 @@ const CajaController = {
         if (pId) pId.textContent = `#${p.id}`;
         const pMesero = document.getElementById('cuenta-mesero-nombre');
         if (pMesero) pMesero.textContent = p.mesero || 'Autoservicio';
-        document.getElementById('cuenta-items-list').innerHTML = p.items.map(it => `<div class="cuenta-item-line"><span>${it.cantidad}x ${it.producto}</span><span>${formatCurrency(it.precio * it.cantidad)}</span></div>`).join('');
+        
+        document.getElementById('cuenta-items-list').innerHTML = p.items.map((it, idx) => `
+            <div class="cuenta-item-line" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.02);">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button onclick="CajaController.solicitarBorrarItem(${p.id}, ${idx})" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.2); color: #ef4444; border-radius: 6px; width: 24px; height: 24px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;" title="Eliminar ítem (Requiere supervisor)" onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'">
+                        🗑️
+                    </button>
+                    <span>${it.cantidad}x ${it.producto}</span>
+                </div>
+                <span>${formatCurrency(it.precio * it.cantidad)}</span>
+            </div>
+        `).join('');
         
         // Controlar visibilidad del aviso de retiro de factura
         const avisoRetiroEl = document.getElementById('caja-aviso-retiro-factura');
@@ -914,6 +932,124 @@ const CajaController = {
             await this.cargarYRenderizar();
         } catch (e) {
             Toast.error("Error", e.message);
+        }
+    },
+
+    supervisorAction: null,
+
+    solicitarBorrarItem(idPedido, indexItem) {
+        this.supervisorAction = { type: 'delete_item', idPedido, indexItem };
+        const promptText = document.getElementById('supervisor-prompt-text');
+        if (promptText) {
+            promptText.textContent = "AUTORIZACIÓN DE ELIMINACIÓN: El cajero está intentando eliminar un producto de una orden activa. Ingrese tarjeta o código de supervisor para continuar.";
+        }
+        const tokenInput = document.getElementById('supervisor-token-input');
+        if (tokenInput) tokenInput.value = '';
+        const authModal = document.getElementById('supervisor-auth-modal');
+        if (authModal) authModal.style.display = 'grid';
+        setTimeout(() => {
+            const tokenInputFocus = document.getElementById('supervisor-token-input');
+            if (tokenInputFocus) tokenInputFocus.focus();
+        }, 150);
+    },
+
+    solicitarDescuentoMembresia() {
+        if (!this.pedidoSeleccionado) return;
+        this.supervisorAction = { type: 'apply_discount', idPedido: this.pedidoSeleccionado.id };
+        const promptText = document.getElementById('supervisor-prompt-text');
+        if (promptText) {
+            promptText.textContent = "AUTORIZACIÓN DE DESCUENTO: El cajero está intentando aplicar un beneficio de Membresía / Cortesía (15% de Descuento). Ingrese tarjeta o código de supervisor para continuar.";
+        }
+        const tokenInput = document.getElementById('supervisor-token-input');
+        if (tokenInput) tokenInput.value = '';
+        const authModal = document.getElementById('supervisor-auth-modal');
+        if (authModal) authModal.style.display = 'grid';
+        setTimeout(() => {
+            const tokenInputFocus = document.getElementById('supervisor-token-input');
+            if (tokenInputFocus) tokenInputFocus.focus();
+        }, 150);
+    },
+
+    cerrarSupervisorModal() {
+        this.supervisorAction = null;
+        const authModal = document.getElementById('supervisor-auth-modal');
+        if (authModal) authModal.style.display = 'none';
+    },
+
+    simularEscaneoSupervisor() {
+        const inp = document.getElementById('supervisor-token-input');
+        if (inp) {
+            inp.value = 'SUPER123';
+            Toast.success("Tarjeta Escaneada", "Tarjeta de Supervisor de Turno detectada.");
+            setTimeout(() => this.confirmarSupervisorAuth(), 600);
+        }
+    },
+
+    async confirmarSupervisorAuth() {
+        const tokenInput = document.getElementById('supervisor-token-input');
+        const token = tokenInput ? tokenInput.value : '';
+        if (token !== 'SUPER123' && token !== 'admin') {
+            Toast.error("Acceso Denegado", "Código de supervisor inválido.");
+            return;
+        }
+
+        const action = this.supervisorAction;
+        this.cerrarSupervisorModal();
+
+        if (!action) return;
+
+        try {
+            if (action.type === 'delete_item') {
+                const { data: orders, error: errFetch } = await window.supabaseClient
+                    .from('pedidos')
+                    .select('*')
+                    .eq('id', action.idPedido);
+                if (errFetch) throw errFetch;
+                if (!orders || orders.length === 0) return;
+
+                const order = orders[0];
+                const updatedItems = [...order.items];
+                updatedItems.splice(action.indexItem, 1);
+
+                // Recalcular total de la orden
+                const nuevoTotal = updatedItems.reduce((acc, it) => acc + (it.cantidad * it.precio), 0);
+
+                const { error: errUpdate } = await window.supabaseClient
+                    .from('pedidos')
+                    .update({ items: updatedItems, total: nuevoTotal })
+                    .eq('id', action.idPedido);
+                if (errUpdate) throw errUpdate;
+
+                Toast.success("Ítem Eliminado", "Modificación aprobada y registrada en auditoría.");
+                await this.cargarYRenderizar();
+                if (this.pedidoSeleccionado && this.pedidoSeleccionado.id == action.idPedido) {
+                    this.verDetalle(action.idPedido);
+                }
+            } else if (action.type === 'apply_discount') {
+                const { data: orders, error: errFetch } = await window.supabaseClient
+                    .from('pedidos')
+                    .select('*')
+                    .eq('id', action.idPedido);
+                if (errFetch) throw errFetch;
+                if (!orders || orders.length === 0) return;
+
+                const order = orders[0];
+                const nuevoTotal = parseFloat((order.total * 0.85).toFixed(2));
+
+                const { error: errUpdate } = await window.supabaseClient
+                    .from('pedidos')
+                    .update({ total: nuevoTotal })
+                    .eq('id', action.idPedido);
+                if (errUpdate) throw errUpdate;
+
+                Toast.success("Descuento Aplicado", "Beneficio de Membresía (15%) aplicado exitosamente.");
+                await this.cargarYRenderizar();
+                if (this.pedidoSeleccionado && this.pedidoSeleccionado.id == action.idPedido) {
+                    this.verDetalle(action.idPedido);
+                }
+            }
+        } catch (e) {
+            Toast.error("Error de Actualización", e.message);
         }
     },
 
@@ -1390,6 +1526,368 @@ const AuditoriaController = {
                 datasets: [{ data: Object.values(freq), backgroundColor: ['#10B981', '#3B82F6', '#8B5CF6'] }]
             }
         });
+
+        // Invocar la visualización de datos dinámica de D3
+        this.renderD3Charts();
+    },
+
+    renderD3Charts() {
+        if (typeof d3 === 'undefined') {
+            console.warn("La librería D3.js no está cargada aún.");
+            return;
+        }
+
+        // --- CHART 1: HORAS PICO DE VENTAS ---
+        const d3HorasPicoContainer = document.getElementById('d3-horas-pico-chart');
+        if (d3HorasPicoContainer) {
+            const hourlyMap = {};
+            // Inicializar las horas más comunes de operación del restaurante (8 AM a 11 PM)
+            for (let h = 8; h <= 23; h++) {
+                const label = `${h.toString().padStart(2, '0')}:00`;
+                hourlyMap[label] = { label, count: 0, total: 0 };
+            }
+
+            this.logs.forEach(log => {
+                if (!log.creado_en) return;
+                const date = new Date(log.creado_en);
+                const h = date.getHours();
+                const label = `${h.toString().padStart(2, '0')}:00`;
+                if (!hourlyMap[label]) {
+                    hourlyMap[label] = { label, count: 0, total: 0 };
+                }
+                hourlyMap[label].count++;
+                hourlyMap[label].total += parseFloat(log.monto || 0);
+            });
+
+            const hourlyData = Object.values(hourlyMap).sort((a, b) => {
+                return parseInt(a.label) - parseInt(b.label);
+            });
+
+            // Encontrar la hora pico
+            let peakHour = "Ninguna";
+            let maxTotal = 0;
+            hourlyData.forEach(d => {
+                if (d.total > maxTotal) {
+                    maxTotal = d.total;
+                    peakHour = d.label;
+                }
+            });
+            const peakHourBadge = document.getElementById('peak-hour-badge');
+            if (peakHourBadge) {
+                peakHourBadge.textContent = maxTotal > 0 ? `Hora Pico: ${peakHour} (${formatCurrency(maxTotal)})` : 'Hora Pico: --';
+            }
+
+            const container = d3.select("#d3-horas-pico-chart");
+            container.html(""); // Limpiar previo
+
+            const rect = d3HorasPicoContainer.getBoundingClientRect();
+            const width = rect.width || 400;
+            const height = rect.height || 240;
+            const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+
+            const svg = container.append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMinYMin meet");
+
+            // Escala X
+            const x = d3.scaleBand()
+                .domain(hourlyData.map(d => d.label))
+                .range([margin.left, width - margin.right])
+                .padding(0.3);
+
+            // Escala Y
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(hourlyData, d => d.total) || 10])
+                .nice()
+                .range([height - margin.bottom, margin.top]);
+
+            // Eje X
+            svg.append("g")
+                .attr("transform", `translate(0, ${height - margin.bottom})`)
+                .call(d3.axisBottom(x).tickSizeOuter(0))
+                .selectAll("text")
+                .style("fill", "var(--color-text-muted)")
+                .style("font-family", "var(--font-body)")
+                .style("font-size", "0.75rem");
+
+            // Eje Y
+            svg.append("g")
+                .attr("transform", `translate(${margin.left}, 0)`)
+                .call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`))
+                .selectAll("text")
+                .style("fill", "var(--color-text-muted)")
+                .style("font-family", "var(--font-mono)")
+                .style("font-size", "0.75rem");
+
+            // Líneas de cuadrícula horizontales
+            svg.append("g")
+                .attr("transform", `translate(${margin.left}, 0)`)
+                .call(d3.axisLeft(y)
+                    .ticks(5)
+                    .tickSize(-width + margin.left + margin.right)
+                    .tickFormat("")
+                )
+                .selectAll(".tick line")
+                .style("stroke", "rgba(255,255,255,0.03)")
+                .style("stroke-dasharray", "2,2");
+
+            // Definición de gradiente
+            const defs = svg.append("defs");
+            const gradient = defs.append("linearGradient")
+                .attr("id", "orange-grad-d3")
+                .attr("x1", "0%")
+                .attr("y1", "0%")
+                .attr("x2", "0%")
+                .attr("y2", "100%");
+            gradient.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "var(--color-primary)");
+            gradient.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "rgba(255,107,0,0.1)");
+
+            // Tooltip local para Horas Pico
+            const tooltip = container.append("div")
+                .style("position", "absolute")
+                .style("opacity", 0)
+                .style("background", "var(--color-bg-depth)")
+                .style("color", "var(--color-text-main)")
+                .style("border", "1px solid var(--color-primary)")
+                .style("padding", "6px 10px")
+                .style("border-radius", "6px")
+                .style("font-size", "0.75rem")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 4px 10px rgba(0,0,0,0.3)")
+                .style("transition", "opacity 0.15s ease")
+                .style("z-index", "100");
+
+            // Barras
+            svg.selectAll(".bar")
+                .data(hourlyData)
+                .enter()
+                .append("rect")
+                .attr("class", "bar")
+                .attr("x", d => x(d.label))
+                .attr("width", x.bandwidth())
+                .attr("y", height - margin.bottom)
+                .attr("height", 0)
+                .attr("rx", 4)
+                .attr("fill", "url(#orange-grad-d3)")
+                .on("mouseover", function(event, d) {
+                    d3.select(this)
+                        .style("fill", "var(--color-secondary)")
+                        .style("cursor", "pointer");
+                    
+                    tooltip
+                        .style("opacity", 1)
+                        .html(`<strong>${d.label}</strong><br/>Total: ${formatCurrency(d.total)}<br/>${d.count} Ventas`);
+                })
+                .on("mousemove", function(event) {
+                    const [mx, my] = d3.pointer(event, svg.node());
+                    tooltip
+                        .style("left", (mx + 10) + "px")
+                        .style("top", (my - 45) + "px");
+                })
+                .on("mouseout", function() {
+                    d3.select(this)
+                        .style("fill", "url(#orange-grad-d3)");
+                    tooltip.style("opacity", 0);
+                })
+                .transition()
+                .duration(800)
+                .attr("y", d => y(d.total))
+                .attr("height", d => height - margin.bottom - y(d.total));
+        }
+
+        // --- CHART 2: PLATILLOS MÁS VENDIDOS ---
+        const d3PlatilloContainer = document.getElementById('d3-platillo-mas-vendido-chart');
+        if (d3PlatilloContainer) {
+            const dishMap = {};
+            this.logs.forEach(log => {
+                const ped = log.pedidos;
+                if (!ped || !ped.items) return;
+                
+                let items = [];
+                if (typeof ped.items === 'string') {
+                    try { items = JSON.parse(ped.items); } catch(e) {}
+                } else if (Array.isArray(ped.items)) {
+                    items = ped.items;
+                }
+                
+                items.forEach(it => {
+                    const name = it.producto || it.nombre;
+                    if (!name) return;
+                    const qty = parseInt(it.cantidad || 0);
+                    if (!dishMap[name]) {
+                        dishMap[name] = { name, count: 0, total: 0 };
+                    }
+                    dishMap[name].count += qty;
+                    dishMap[name].total += qty * parseFloat(it.precio || 0);
+                });
+            });
+
+            const dishData = Object.values(dishMap)
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5); // Obtener Top 5
+
+            // Actualizar Badge del plato más vendido
+            const bestSellerBadge = document.getElementById('best-seller-badge');
+            if (bestSellerBadge) {
+                bestSellerBadge.textContent = dishData.length > 0 ? `Top: ${dishData[0].name} (${dishData[0].count} uds)` : 'Top: --';
+            }
+
+            const containerPie = d3.select("#d3-platillo-mas-vendido-chart");
+            containerPie.html(""); // Limpiar previo
+
+            if (dishData.length === 0) {
+                containerPie.append("div")
+                    .style("height", "100%")
+                    .style("display", "flex")
+                    .style("align-items", "center")
+                    .style("justify-content", "center")
+                    .style("color", "var(--color-text-muted)")
+                    .style("font-size", "0.85rem")
+                    .text("No hay pedidos con platillos registrados.");
+                return;
+            }
+
+            const rectPie = d3PlatilloContainer.getBoundingClientRect();
+            const wPie = rectPie.width || 400;
+            const hPie = rectPie.height || 240;
+            const mPie = { top: 15, right: 35, bottom: 25, left: 110 };
+
+            const svgPie = containerPie.append("svg")
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .attr("viewBox", `0 0 ${wPie} ${hPie}`)
+                .attr("preserveAspectRatio", "xMinYMin meet");
+
+            // Escala Y (Nombres de platos)
+            const yPie = d3.scaleBand()
+                .domain(dishData.map(d => d.name))
+                .range([mPie.top, hPie - mPie.bottom])
+                .padding(0.25);
+
+            // Escala X (Cantidades)
+            const xPie = d3.scaleLinear()
+                .domain([0, d3.max(dishData, d => d.count) || 5])
+                .nice()
+                .range([mPie.left, wPie - mPie.right]);
+
+            // Dibujar nombres de platillos en el eje izquierdo con truncamiento inteligente
+            svgPie.append("g")
+                .attr("transform", `translate(${mPie.left}, 0)`)
+                .call(d3.axisLeft(yPie).tickSize(0))
+                .selectAll("text")
+                .style("fill", "var(--color-text-main)")
+                .style("font-family", "var(--font-body)")
+                .style("font-size", "0.75rem")
+                .each(function() {
+                    const self = d3.select(this);
+                    let text = self.text();
+                    if (text.length > 15) {
+                        self.text(text.substring(0, 13) + "...");
+                    }
+                });
+
+            // Dibujar eje inferior (número entero de unidades)
+            svgPie.append("g")
+                .attr("transform", `translate(0, ${hPie - mPie.bottom})`)
+                .call(d3.axisBottom(xPie).ticks(5).tickFormat(d3.format("d")))
+                .selectAll("text")
+                .style("fill", "var(--color-text-muted)")
+                .style("font-family", "var(--font-mono)")
+                .style("font-size", "0.7rem");
+
+            // Gradiente para platillos más vendidos
+            const defsPie = svgPie.append("defs");
+            const gradientPie = defsPie.append("linearGradient")
+                .attr("id", "blue-grad-d3")
+                .attr("x1", "0%")
+                .attr("y1", "0%")
+                .attr("x2", "100%")
+                .attr("y2", "0%");
+            gradientPie.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "rgba(255,204,0,0.15)");
+            gradientPie.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "var(--color-accent)");
+
+            // Tooltip local para Platillos
+            const tooltipPie = containerPie.append("div")
+                .style("position", "absolute")
+                .style("opacity", 0)
+                .style("background", "var(--color-bg-depth)")
+                .style("color", "var(--color-text-main)")
+                .style("border", "1px solid var(--color-accent)")
+                .style("padding", "6px 10px")
+                .style("border-radius", "6px")
+                .style("font-size", "0.75rem")
+                .style("pointer-events", "none")
+                .style("box-shadow", "0 4px 10px rgba(0,0,0,0.3)")
+                .style("transition", "opacity 0.15s ease")
+                .style("z-index", "100");
+
+            // Dibujar barras horizontales
+            svgPie.selectAll(".bar-h")
+                .data(dishData)
+                .enter()
+                .append("rect")
+                .attr("class", "bar-h")
+                .attr("y", d => yPie(d.name))
+                .attr("x", mPie.left)
+                .attr("height", yPie.bandwidth())
+                .attr("width", 0)
+                .attr("rx", 4)
+                .attr("fill", "url(#blue-grad-d3)")
+                .on("mouseover", function(event, d) {
+                    d3.select(this)
+                        .style("fill", "var(--color-secondary)")
+                        .style("cursor", "pointer");
+                    
+                    tooltipPie
+                        .style("opacity", 1)
+                        .html(`<strong>${d.name}</strong><br/>Vendidos: ${d.count} unidades<br/>Total estimado: ${formatCurrency(d.total)}`);
+                })
+                .on("mousemove", function(event) {
+                    const [mx, my] = d3.pointer(event, svgPie.node());
+                    tooltipPie
+                        .style("left", (mx + 10) + "px")
+                        .style("top", (my - 45) + "px");
+                })
+                .on("mouseout", function() {
+                    d3.select(this)
+                        .style("fill", "url(#blue-grad-d3)");
+                    tooltipPie.style("opacity", 0);
+                })
+                .transition()
+                .duration(800)
+                .attr("width", d => xPie(d.count) - mPie.left);
+
+            // Dibujar números en la derecha de la barra
+            svgPie.selectAll(".label-val")
+                .data(dishData)
+                .enter()
+                .append("text")
+                .attr("class", "label-val")
+                .attr("y", d => yPie(d.name) + yPie.bandwidth() / 2 + 4)
+                .attr("x", mPie.left + 8)
+                .attr("fill", "#ffffff")
+                .style("font-family", "var(--font-mono)")
+                .style("font-size", "0.7rem")
+                .style("font-weight", "bold")
+                .style("opacity", 0)
+                .text(d => d.count)
+                .transition()
+                .delay(400)
+                .duration(400)
+                .attr("x", d => xPie(d.count) + 8)
+                .attr("fill", "var(--color-accent)")
+                .style("opacity", 1);
+        }
     },
 
     renderLogsTable() {
@@ -1920,32 +2418,43 @@ const AdminMenuController = {
             return;
         }
 
-        cont.innerHTML = this.menu.sort((a, b) => a.categoria.localeCompare(b.categoria)).map(m => `
-            <div class="mesa-caja-card" style="cursor: default; border-color: ${m.disponible ? 'var(--color-border)' : 'var(--color-danger)'}; opacity: ${m.disponible ? 1 : 0.7};">
-                <div class="caja-mesa-header">
-                    <span class="mesa-tag-number" style="background: var(--color-bg-surface);">${m.emoji || '🍴'} ${m.categoria}</span>
-                    <span class="mesa-estado-pill ${m.disponible ? 'border-listo' : 'border-pendiente'}">
-                        ${m.disponible ? 'ACTIVO' : 'SIN STOCK'}
-                    </span>
+        cont.innerHTML = this.menu.sort((a, b) => a.categoria.localeCompare(b.categoria)).map(m => {
+            const localImg = localStorage.getItem(`menu_img_${m.id}`) || localStorage.getItem(`menu_img_${m.nombre}`);
+            const imgToUse = m.imagen || localImg;
+            const imgHtml = imgToUse 
+                ? `<img src="${imgToUse}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 12px; border: 1px solid var(--color-border); flex-shrink: 0;" />`
+                : `<div style="width: 50px; height: 50px; background: var(--color-bg-surface); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; border: 1px solid var(--color-border); flex-shrink: 0;">${m.emoji || '🍽️'}</div>`;
+
+            return `
+                <div class="mesa-caja-card" style="cursor: default; border-color: ${m.disponible ? 'var(--color-border)' : 'var(--color-danger)'}; opacity: ${m.disponible ? 1 : 0.7};">
+                    <div class="caja-mesa-header">
+                        <span class="mesa-tag-number" style="background: var(--color-bg-surface);">${m.emoji || '🍴'} ${m.categoria}</span>
+                        <span class="mesa-estado-pill ${m.disponible ? 'border-listo' : 'border-pendiente'}">
+                            ${m.disponible ? 'ACTIVO' : 'SIN STOCK'}
+                        </span>
+                    </div>
+                    <div class="caja-mesa-body" style="display: flex; gap: 15px; align-items: flex-start; margin-top: 10px;">
+                        ${imgHtml}
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="font-size: 1.1rem; margin: 0 0 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.nombre}</h3>
+                            <p class="caja-mesa-mesero" style="margin: 0; font-size: 0.8rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 2.4em; line-height: 1.2;">${m.descripcion || 'Sin descripción'}</p>
+                            <p class="caja-mesa-monto" style="margin-top: 8px; font-weight: bold; color: var(--color-primary); font-size: 1.1rem; margin-bottom: 0;">${formatCurrency(m.precio)}</p>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 15px;">
+                        <button onclick="AdminMenuController.toggle(${m.id}, ${m.disponible})" class="btn-checkout" style="background: ${m.disponible ? 'var(--color-accent)' : 'var(--color-primary)'}; padding: 6px; font-size: 0.75rem;">
+                            <span>${m.disponible ? '🚫' : '✅'}</span> ${m.disponible ? 'Pausar' : 'Activar'}
+                        </button>
+                        <button onclick="AdminMenuController.editar(${m.id})" class="btn-checkout checkout-tarjeta" style="padding: 6px; font-size: 0.75rem;">
+                            <span>✏️</span> Editar
+                        </button>
+                        <button onclick="AdminMenuController.borrar(${m.id})" class="btn-checkout" style="background: var(--color-danger); padding: 6px; font-size: 0.75rem;">
+                            <span>🗑️</span> Borrar
+                        </button>
+                    </div>
                 </div>
-                <div class="caja-mesa-body">
-                    <h3 style="font-size: 1.1rem; margin-top: 5px;">${m.nombre}</h3>
-                    <p class="caja-mesa-mesero">${m.descripcion || 'Sin descripción'}</p>
-                    <p class="caja-mesa-monto" style="margin-top: 10px;">${formatCurrency(m.precio)}</p>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 15px;">
-                    <button onclick="AdminMenuController.toggle(${m.id}, ${m.disponible})" class="btn-checkout" style="background: ${m.disponible ? 'var(--color-accent)' : 'var(--color-primary)'}; padding: 6px; font-size: 0.75rem;">
-                        <span>${m.disponible ? '🚫' : '✅'}</span> ${m.disponible ? 'Pausar' : 'Activar'}
-                    </button>
-                    <button onclick="AdminMenuController.editar(${m.id})" class="btn-checkout checkout-tarjeta" style="padding: 6px; font-size: 0.75rem;">
-                        <span>✏️</span> Editar
-                    </button>
-                    <button onclick="AdminMenuController.borrar(${m.id})" class="btn-checkout" style="background: var(--color-danger); padding: 6px; font-size: 0.75rem;">
-                        <span>🗑️</span> Borrar
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     },
     async toggle(id, d) {
         try {
@@ -2053,6 +2562,30 @@ const AdminMenuController = {
                             </div>
                         </div>
                     </div>
+
+                    <!-- card ID 4: Imagen del Platillo (Didáctica) -->
+                    <div class="visual-card-section">
+                        <span class="visual-card-title">Fotografía del Platillo (Opcional) 📸</span>
+                        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+                            <div id="editor-image-preview" style="width: 100%; height: 160px; border-radius: 12px; border: 2px dashed rgba(255,107,0,0.3); background: rgba(255,107,0,0.02); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative;" onclick="document.getElementById('editor-image-file').click()">
+                                <div id="preview-placeholder" style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 15px; text-align: center;">
+                                    <ion-icon name="camera-outline" style="font-size: 2.2rem; color: var(--color-primary);"></ion-icon>
+                                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--color-text-main);">Sube o Arrastra una Foto del Plato</span>
+                                    <span style="font-size: 0.7rem; color: var(--color-text-muted);">La foto se verá hermosa en el menú digital del cliente.</span>
+                                </div>
+                                <img id="preview-img-element" style="display: none; width: 100%; height: 100%; object-fit: cover;" />
+                            </div>
+                            <input type="file" id="editor-image-file" accept="image/*" style="display: none;" />
+                            <div style="display: flex; gap: 10px; width: 100%;">
+                                <button type="button" class="btn-checkout" onclick="document.getElementById('editor-image-file').click()" style="background: var(--color-bg-surface); border: 1px solid var(--color-border); flex: 1; padding: 8px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; color: var(--color-text-main);">
+                                    <span>🖼️</span> Buscar Imagen
+                                </button>
+                                <button type="button" id="btn-clear-image" class="btn-checkout" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); flex: 1; padding: 8px; font-size: 0.8rem; display: none; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+                                    <span>🗑️</span> Quitar Foto
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-card-footer">
                     <button class="btn-modal-action btn-secondary-modal" onclick="document.getElementById('menu-item-editor-modal').remove()">Cancelar</button>
@@ -2062,6 +2595,58 @@ const AdminMenuController = {
         `;
 
         document.body.appendChild(modal);
+
+        // Configurar cargador de imagen
+        let uploadedBase64 = item ? (item.imagen || localStorage.getItem(`menu_img_${item.id}`) || localStorage.getItem(`menu_img_${item.nombre}`) || '') : '';
+
+        const imageFileInput = document.getElementById('editor-image-file');
+        const imagePreview = document.getElementById('editor-image-preview');
+        const previewPlaceholder = document.getElementById('preview-placeholder');
+        const previewImgElement = document.getElementById('preview-img-element');
+        const btnClearImage = document.getElementById('btn-clear-image');
+
+        const displayImage = (base64) => {
+            if (base64) {
+                previewImgElement.src = base64;
+                previewImgElement.style.display = 'block';
+                previewPlaceholder.style.display = 'none';
+                btnClearImage.style.display = 'flex';
+                uploadedBase64 = base64;
+            } else {
+                previewImgElement.src = '';
+                previewImgElement.style.display = 'none';
+                previewPlaceholder.style.display = 'flex';
+                btnClearImage.style.display = 'none';
+                uploadedBase64 = '';
+            }
+        };
+
+        if (uploadedBase64) {
+            displayImage(uploadedBase64);
+        }
+
+        imageFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                Toast.error("Archivo muy grande", "La imagen no debe superar los 2MB para optimizar el rendimiento.");
+                imageFileInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                displayImage(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        btnClearImage.addEventListener('click', (e) => {
+            e.stopPropagation();
+            displayImage('');
+            imageFileInput.value = '';
+        });
 
         // Configurar toggle de peso
         const pesoContainer = document.getElementById('editor-peso-container');
@@ -2116,7 +2701,8 @@ const AdminMenuController = {
                 descripcion: descripcionVal,
                 emoji: emojiVal,
                 unidad_medida: isPesoVal ? 'kg' : 'unid',
-                disponible: item ? item.disponible : true
+                disponible: item ? item.disponible : true,
+                imagen: uploadedBase64
             };
 
             document.getElementById('menu-item-editor-modal').remove();

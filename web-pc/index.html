@@ -248,6 +248,130 @@
             color: var(--muted);
         }
 
+        /* Estilos de Transiciones y Esqueletos (Didáctico) */
+        .hidden-card {
+            display: none !important;
+        }
+
+        .card-enter {
+            opacity: 0;
+            transform: translateY(24px) scale(0.98);
+            transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .card-enter-active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Skeleton Card styling */
+        .skeleton-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 45px 30px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .skeleton-shimmer {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03) !important;
+        }
+
+        .skeleton-shimmer::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 107, 0, 0.08),
+                transparent
+            );
+            background-size: 200% 100%;
+            animation: shimmer-animation 1.5s infinite linear;
+        }
+
+        @keyframes shimmer-animation {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .skeleton-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
+            margin-bottom: 30px;
+        }
+
+        .skeleton-title {
+            width: 140px;
+            height: 24px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-desc-line {
+            width: 85%;
+            height: 14px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-desc-line-2 {
+            width: 60%;
+            height: 14px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+        }
+
+        .skeleton-badge {
+            width: 90px;
+            height: 28px;
+            border-radius: 100px;
+        }
+
+        /* Fade animation for parent page */
+        .page-fade-in {
+            opacity: 0;
+            animation: pageIn 0.4s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pageIn {
+            to { opacity: 1; }
+        }
+
+        .page-fade-out {
+            opacity: 1;
+            transform: scale(1);
+            animation: pageOut 0.25s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes pageOut {
+            to { opacity: 0; transform: scale(0.97); }
+        }
+
+        /* Top Progress Bar for instant navigation feedback */
+        #top-nav-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            z-index: 99999;
+            width: 0%;
+            transition: width 0.4s ease, opacity 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 107, 0, 0.5);
+            pointer-events: none;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.8rem; letter-spacing: -1px; }
@@ -320,6 +444,15 @@
                 <div class="card-badge">Customer UX</div>
             </a>
 
+            <a href="caja.html?tab=menu" class="card">
+                <div class="card-icon" style="color: var(--primary);">
+                    <ion-icon name="book-outline"></ion-icon>
+                </div>
+                <div class="card-title">Gestión de Menú</div>
+                <p class="card-desc">Edita platillos, precios, categorías y sube fotografías de los platos en tiempo real.</p>
+                <div class="card-badge" style="background: rgba(255, 107, 0, 0.15); color: var(--primary); font-weight: 800;">Didáctico</div>
+            </a>
+
             <a href="auditoria.html" class="card">
                 <div class="card-icon">
                     <ion-icon name="trending-up-outline"></ion-icon>
@@ -351,6 +484,92 @@
             const clearIcon = document.getElementById('clearSearch');
             const noResults = document.getElementById('noResults');
             const cards = document.querySelectorAll('.card');
+
+            // --- ANIMACIONES DE CARGA SKELETON Y TRANSICIÓN DE NAVEGACIÓN ---
+            
+            // 1. Crear y animar la barra de carga superior al cargar la página
+            const progressBar = document.createElement('div');
+            progressBar.id = 'top-nav-progress';
+            document.body.appendChild(progressBar);
+            
+            // Simular carga de página inicial (barra progresa y se desvanece)
+            setTimeout(() => { progressBar.style.width = '35%'; }, 50);
+            setTimeout(() => { progressBar.style.width = '75%'; }, 200);
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+                setTimeout(() => { progressBar.style.opacity = '0'; }, 150);
+            }, 350);
+
+            // 2. Controlar la carga de esqueletos en las tarjetas del dashboard
+            const gridContainer = document.querySelector('.grid');
+            const originalCards = Array.from(cards);
+
+            // Ocultar tarjetas reales al principio para la animación de entrada
+            originalCards.forEach(card => {
+                card.classList.add('hidden-card');
+                card.classList.add('card-enter');
+            });
+
+            // Generar e insertar tarjetas de esqueleto (skeleton loaders) de igual tamaño
+            const numSkeletons = originalCards.length || 8;
+            const skeletons = [];
+            for (let i = 0; i < numSkeletons; i++) {
+                const skeletonCard = document.createElement('div');
+                skeletonCard.className = 'skeleton-card';
+                skeletonCard.innerHTML = `
+                    <div class="skeleton-icon skeleton-shimmer"></div>
+                    <div class="skeleton-title skeleton-shimmer"></div>
+                    <div class="skeleton-desc-line skeleton-shimmer"></div>
+                    <div class="skeleton-desc-line-2 skeleton-shimmer"></div>
+                    <div class="skeleton-badge skeleton-shimmer"></div>
+                `;
+                gridContainer.appendChild(skeletonCard);
+                skeletons.push(skeletonCard);
+            }
+
+            // Simular tiempo de carga de módulos y conexión con Supabase (700ms)
+            setTimeout(() => {
+                // Remover esqueletos con desvanecimiento
+                skeletons.forEach(s => {
+                    s.style.opacity = '0';
+                    s.style.transition = 'opacity 0.2s ease';
+                });
+
+                setTimeout(() => {
+                    skeletons.forEach(s => s.remove());
+
+                    // Mostrar tarjetas originales con animación staggered (escalonada) de alta gama
+                    originalCards.forEach((card, index) => {
+                        card.classList.remove('hidden-card');
+                        setTimeout(() => {
+                            card.classList.add('card-enter-active');
+                        }, index * 40); // 40ms de retraso por tarjeta para una cascada fluida
+                    });
+                }, 200);
+            }, 700);
+
+            // 3. Interceptar clics en tarjetas para navegación con transición suave y barra de carga
+            originalCards.forEach(card => {
+                card.addEventListener('click', (e) => {
+                    const href = card.getAttribute('href');
+                    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+                    
+                    e.preventDefault();
+
+                    // Activar barra de progreso superior al 85%
+                    progressBar.style.opacity = '1';
+                    progressBar.style.width = '0%';
+                    setTimeout(() => { progressBar.style.width = '85%'; }, 10);
+
+                    // Fade-out suave de la página
+                    document.body.classList.add('page-fade-out');
+
+                    // Redireccionar al finalizar la animación (250ms)
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 250);
+                });
+            });
 
             const filterCards = (term) => {
                 term = term.toLowerCase().trim();

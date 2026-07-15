@@ -734,14 +734,28 @@
     </div>
 
     <!-- PANTALLA DE ESPERA PAGO -->
-    <div id="pm-wait-screen" class="pm-wait-screen">
-        <div class="loading-spinner" style="width: 80px; height: 80px; border-width: 6px; margin-bottom: 30px;"></div>
-        <h2 style="font-size: 1.8rem; margin-bottom: 15px;">Verificando Pago...</h2>
-        <p id="pm-wait-message" style="color: var(--text-muted); font-size: 1.1rem; max-width: 300px; line-height: 1.6;">
-            Esperando confirmación de pago en Caja...
+    <div id="pm-wait-screen" class="pm-wait-screen" style="flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+        <!-- Circular countdown visual container -->
+        <div class="timer-circle-container" style="position: relative; width: 120px; height: 120px; margin-bottom: 25px; display: flex; align-items: center; justify-content: center;">
+            <div class="loading-spinner" style="position: absolute; width: 100%; height: 100%; border-width: 5px; border-top-color: var(--primary);"></div>
+            <span id="pm-timer-display" style="font-size: 1.6rem; font-weight: 800; color: var(--primary); font-family: monospace; z-index: 2;">03:00</span>
+        </div>
+        
+        <h2 style="font-size: 1.8rem; margin-bottom: 12px; font-weight: 800;">Verificando Pago...</h2>
+        <p id="pm-wait-message" style="color: var(--text-muted); font-size: 1.05rem; max-width: 320px; line-height: 1.6; margin-bottom: 25px;">
+            El cajero está conciliando tu referencia en el portal bancario. ¡Tu orden se enviará a cocina de inmediato!
         </p>
-        <div style="margin-top: 40px; padding: 20px; background: rgba(255, 107, 0, 0.05); border-radius: 20px; border: 1px solid rgba(255, 107, 0, 0.1);">
-            <p style="font-size: 0.9rem;">Por favor, no cierres esta pantalla.</p>
+
+        <!-- Dynamic failover / support container -->
+        <div id="pm-timer-fallback" style="display: none; width: 100%; max-width: 320px; background: rgba(255, 107, 0, 0.08); border: 1px solid rgba(255,107,0,0.25); border-radius: 16px; padding: 15px; margin-top: 15px;">
+            <p style="font-size: 0.825rem; color: #fff; margin-bottom: 10px; font-weight: 600;">⌛ ¿Demora inusual? El cajero está atendiendo a otros clientes.</p>
+            <button onclick="solicitarMesa('asistencia')" style="background: var(--primary); border: none; padding: 8px 16px; border-radius: 8px; color: #fff; font-size: 0.8rem; font-weight: 700; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(255,107,0,0.3);">
+                🛎️ Llamar Cajera para Verificación Manual
+            </button>
+        </div>
+
+        <div style="margin-top: 30px; padding: 12px 24px; background: rgba(255, 255, 255, 0.03); border-radius: 100px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Por favor, mantén esta pantalla abierta.</p>
         </div>
     </div>
 

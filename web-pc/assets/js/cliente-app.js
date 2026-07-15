@@ -336,8 +336,14 @@ function renderMenu() {
                 card.style.filter = 'grayscale(0.8)';
             }
             
+            const localImg = localStorage.getItem(`menu_img_${prod.id}`) || localStorage.getItem(`menu_img_${prod.nombre}`);
+            const imgToUse = prod.imagen || localImg;
+            const imageHtml = imgToUse 
+                ? `<img src="${imgToUse}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 18px;" onerror="this.style.display='none'" />` 
+                : (prod.emoji || '🍽️');
+            
             card.innerHTML = `
-                <div class="platillo-emoji">${prod.emoji || '🍽️'}</div>
+                <div class="platillo-emoji" style="overflow: hidden; padding: 0; display: flex; align-items: center; justify-content: center;">${imageHtml}</div>
                 <div class="platillo-info">
                     <div class="platillo-name">${prod.nombre} ${isAvailable ? '' : '<span style="font-size:0.6rem; color:var(--danger);">(AGOTADO)</span>'}</div>
                     <div class="platillo-desc">${prod.descripcion || ''}</div>
@@ -656,6 +662,9 @@ async function confirmarPagoMovil() {
             closeCart();
             document.getElementById('pm-wait-screen').style.display = 'flex';
             
+            // Iniciar temporizador de cuenta regresiva
+            startPMCountdown();
+            
             // Escuchar aprobación en tiempo real
             startTrackingPagoMovil(response.id);
         }
@@ -665,11 +674,50 @@ async function confirmarPagoMovil() {
     }
 }
 
+let pmTimerInterval = null;
+
+function startPMCountdown() {
+    if (pmTimerInterval) clearInterval(pmTimerInterval);
+    let secondsLeft = 180; // 3 minutos
+    const displayEl = document.getElementById('pm-timer-display');
+    const fallbackEl = document.getElementById('pm-timer-fallback');
+    
+    if (displayEl) displayEl.textContent = "03:00";
+    if (fallbackEl) fallbackEl.style.display = 'none';
+    
+    pmTimerInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft <= 0) {
+            clearInterval(pmTimerInterval);
+            if (displayEl) displayEl.textContent = "00:00";
+            if (fallbackEl) fallbackEl.style.display = 'block';
+            // Notificar a caja automáticamente tras timeout
+            try {
+                DataService.crearSolicitud(state.alias || "Cliente QR", "asistencia");
+            } catch(e) { console.warn(e); }
+        } else {
+            const mins = Math.floor(secondsLeft / 60);
+            const secs = secondsLeft % 60;
+            if (displayEl) {
+                displayEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+        }
+    }, 1000);
+}
+
+function stopPMCountdown() {
+    if (pmTimerInterval) {
+        clearInterval(pmTimerInterval);
+        pmTimerInterval = null;
+    }
+}
+
 function startTrackingPagoMovil(orderId) {
     DataService.suscribirAPedidos((payload) => {
         if (payload.new && payload.new.id == orderId) {
             // Si el estado_pago cambia
             if (payload.new.estado_pago === 'aprobado') {
+                stopPMCountdown();
                 document.getElementById('pm-wait-message').innerHTML = 
                     "<span style='color:var(--success); font-weight:800;'>¡PAGO APROBADO!</span><br>Ya puedes retirar tu factura en caja.";
                 setTimeout(() => {
@@ -677,6 +725,7 @@ function startTrackingPagoMovil(orderId) {
                     showSuccess();
                 }, 3000);
             } else if (payload.new.estado_pago === 'rechazado') {
+                stopPMCountdown();
                 document.getElementById('pm-wait-screen').style.display = 'none';
                 Toast.error("Pago Rechazado", "La caja no pudo validar tu referencia. Por favor intentalo de nuevo.");
                 openPagoMovil();

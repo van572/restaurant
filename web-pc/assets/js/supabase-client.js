@@ -357,17 +357,80 @@ const DataService = {
 
     async guardarItemMenu(item) {
         const client = ensureClient();
-        if (item.id) {
-            const { error } = await client.from('menu').update(item).eq('id', item.id);
-            if (error) throw error;
-        } else {
-            const { error } = await client.from('menu').insert([item]);
-            if (error) throw error;
+        
+        // Guardamos una copia de la imagen y la removemos del payload temporalmente si hay fallo
+        const imagenBase64 = item.imagen;
+        
+        // Función auxiliar para guardar localmente como fallback
+        const guardarLocalFallback = (savedItemName, savedItemId) => {
+            if (imagenBase64) {
+                localStorage.setItem(`menu_img_${savedItemName}`, imagenBase64);
+                if (savedItemId) {
+                    localStorage.setItem(`menu_img_${savedItemId}`, imagenBase64);
+                }
+            } else {
+                localStorage.removeItem(`menu_img_${savedItemName}`);
+                if (savedItemId) {
+                    localStorage.removeItem(`menu_img_${savedItemId}`);
+                }
+            }
+        };
+
+        try {
+            // Intentamos guardar con la columna 'imagen'
+            if (item.id) {
+                const { error } = await client.from('menu').update(item).eq('id', item.id);
+                if (error) {
+                    // Si el error es que la columna 'imagen' no existe, reintentamos sin ella
+                    if (error.message && (error.message.includes("column") || error.message.includes("does not exist") || error.message.includes("400"))) {
+                        const { imagen, ...itemSinImagen } = item;
+                        const { error: errorRetry } = await client.from('menu').update(itemSinImagen).eq('id', item.id);
+                        if (errorRetry) throw errorRetry;
+                        // Sucedió el fallback local
+                        guardarLocalFallback(item.nombre, item.id);
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    // Si se guardó en Supabase con éxito, guardamos también local para acceso instantáneo offline/rápido
+                    guardarLocalFallback(item.nombre, item.id);
+                }
+            } else {
+                const { data, error } = await client.from('menu').insert([item]).select();
+                if (error) {
+                    if (error.message && (error.message.includes("column") || error.message.includes("does not exist") || error.message.includes("400"))) {
+                        const { imagen, ...itemSinImagen } = item;
+                        const { data: dataRetry, error: errorRetry } = await client.from('menu').insert([itemSinImagen]).select();
+                        if (errorRetry) throw errorRetry;
+                        
+                        const nuevoId = (dataRetry && dataRetry[0]) ? dataRetry[0].id : null;
+                        guardarLocalFallback(item.nombre, nuevoId);
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    const nuevoId = (data && data[0]) ? data[0].id : null;
+                    guardarLocalFallback(item.nombre, nuevoId);
+                }
+            }
+        } catch (dbErr) {
+            console.error("Error al guardar item en Supabase:", dbErr);
+            throw dbErr;
         }
     },
 
     async eliminarItemMenu(id) {
         const client = ensureClient();
+        
+        // Obtener el item para saber su nombre antes de eliminarlo (para limpiar fallback local)
+        try {
+            const { data } = await client.from('menu').select('nombre').eq('id', id).single();
+            if (data && data.nombre) {
+                localStorage.removeItem(`menu_img_${id}`);
+                localStorage.removeItem(`menu_img_${data.nombre}`);
+            }
+        } catch(e) { console.warn("No se pudo pre-buscar el item para borrar imagen local:", e); }
+
         const { error } = await client.from('menu').delete().eq('id', id);
         if (error) throw error;
     },
